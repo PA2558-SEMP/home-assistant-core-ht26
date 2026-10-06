@@ -166,7 +166,7 @@ class HegelMediaPlayer(MediaPlayerEntity):
             await self._client.send(
                 f"-r.{HEARTBEAT_TIMEOUT_MINUTES}", expect_reply=False
             )
-        except (HegelConnectionError, TimeoutError, OSError) as err:
+        except (HegelConnectionError, OSError) as err:
             _LOGGER.debug("Heartbeat failed: %s", err)
 
     async def _async_handle_push(self, msg: str) -> None:
