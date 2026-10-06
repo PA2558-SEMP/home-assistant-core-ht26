@@ -242,7 +242,7 @@ class HegelMediaPlayer(MediaPlayerEntity):
                     apply_state_changes(
                         self._state, update, logger=_LOGGER, source="update"
                     )
-            except (HegelConnectionError, TimeoutError, OSError) as err:
+            except (HegelConnectionError, OSError) as err:
                 _LOGGER.debug("Refresh command %s failed: %s", cmd, err)
         # update entity state
         self.async_write_ha_state()
