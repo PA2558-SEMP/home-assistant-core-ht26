@@ -138,11 +138,11 @@ class VerisureDoorlock(CoordinatorEntity[VerisureDataUpdateCoordinator], LockEnt
         target_state = "LOCKED" if state == LockState.LOCKED else "UNLOCKED"
         lock_status = None
         attempts = 0
-        while lock_status is None:
-            if attempts == 30:
-                break
-            if attempts > 1:
-                await asyncio.sleep(0.5)
+        poll_delay = 0.25
+        while lock_status is None and attempts < 30:
+            if attempts > 0:
+                await asyncio.sleep(poll_delay)
+                poll_delay = min(poll_delay * 1.5, 0.5)
             attempts += 1
             poll_data = await self.hass.async_add_executor_job(
                 self.coordinator.verisure.request,
