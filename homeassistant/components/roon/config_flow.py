@@ -75,6 +75,7 @@ class RoonHub:
         else:
             apis = [RoonApi(ROON_APPINFO, None, host, port, blocking_init=False)]
 
+        poll_interval = min(AUTHENTICATE_TIMEOUT, 0.25)
         while secs <= TIMEOUT:
             # Roon can discover multiple devices - not all of
             # which are proper servers, so try and
@@ -82,14 +83,14 @@ class RoonHub:
             # The user will only enable one - so look for a valid token
             auth_api = [api for api in apis if api.token is not None]
 
-            secs += AUTHENTICATE_TIMEOUT
             if auth_api:
                 core_id = auth_api[0].core_id
                 core_name = auth_api[0].core_name
                 token = auth_api[0].token
                 break
 
-            await asyncio.sleep(AUTHENTICATE_TIMEOUT)
+            secs += poll_interval
+            await asyncio.sleep(poll_interval)
 
         await self._hass.async_add_executor_job(stop_apis, apis)
 
