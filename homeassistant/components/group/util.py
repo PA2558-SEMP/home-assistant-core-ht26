@@ -34,7 +34,7 @@ def mean_tuple(*args: Any) -> tuple[float | Any, ...]:
 def mean_circle(*args: Any) -> tuple[float | Any, ...]:
     """Return circular mean of hue and arithmetic mean of saturation from HS tuples."""
     if not args:
-        return ()
+        raise ValueError("mean_circle() requires at least one (hue, saturation) tuple")
 
     hues, saturations = zip(*args, strict=False)
 
