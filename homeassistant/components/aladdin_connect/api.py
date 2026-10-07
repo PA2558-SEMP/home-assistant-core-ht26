@@ -1,5 +1,4 @@
-"""API for Aladdin Connect Genie bound to Home Assistant OAuth."""
-
+import os
 from typing import cast, override
 
 from aiohttp import ClientSession
@@ -7,8 +6,7 @@ from genie_partner_sdk.auth import Auth
 
 from homeassistant.helpers import config_entry_oauth2_flow
 
-API_URL = "https://twdvzuefzh.execute-api.us-east-2.amazonaws.com/v1"
-API_KEY = "k6QaiQmcTm2zfaNns5L1Z8duBtJmhDOW8JawlCC3"
+from .const import API_URL
 
 
 class AsyncConfigFlowAuth(Auth):
@@ -16,7 +14,12 @@ class AsyncConfigFlowAuth(Auth):
 
     def __init__(self, websession: ClientSession, access_token: str) -> None:
         """Initialize Aladdin Connect Genie auth."""
-        super().__init__(websession, API_URL, access_token, API_KEY)
+        super().__init__(
+            websession,
+            API_URL,
+            access_token,
+            os.environ.get("ALADDIN_API_KEY"),
+        )
 
     @override
     async def async_get_access_token(self) -> str:
@@ -34,7 +37,10 @@ class AsyncConfigEntryAuth(Auth):
     ) -> None:
         """Initialize Aladdin Connect Genie auth."""
         super().__init__(
-            websession, API_URL, oauth_session.token["access_token"], API_KEY
+            websession,
+            API_URL,
+            oauth_session.token["access_token"],
+            os.environ.get("ALADDIN_API_KEY"),
         )
         self._oauth_session = oauth_session
 
