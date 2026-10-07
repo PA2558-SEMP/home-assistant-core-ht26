@@ -71,11 +71,10 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     # pylint: disable-next=home-assistant-use-runtime-data
     storage = hass.data[DOMAIN][DATA_STORAGE] = RememberTheMilkConfiguration(hass)
     await hass.async_add_executor_job(storage.setup)
-    if DOMAIN not in config:
-        return True
+    if DOMAIN in config:
+        for rtm_config in deepcopy(config[DOMAIN]):
+            hass.async_create_task(_async_import(hass, storage, rtm_config))
 
-    for rtm_config in deepcopy(config[DOMAIN]):
-        hass.async_create_task(_async_import(hass, storage, rtm_config))
     return True
 
 
