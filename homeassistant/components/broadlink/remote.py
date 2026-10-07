@@ -342,8 +342,9 @@ class BroadlinkRemote(BroadlinkEntity, RemoteEntity, RestoreEntity):
 
         try:
             start_time = dt_util.utcnow()
+            poll_interval = 0.5
             while (dt_util.utcnow() - start_time) < LEARNING_TIMEOUT:
-                await asyncio.sleep(1)
+                await asyncio.sleep(poll_interval)
                 try:
                     code = await device.async_request(device.api.check_data)
                 except ReadError, StorageError:
