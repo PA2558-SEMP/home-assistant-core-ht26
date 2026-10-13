@@ -376,7 +376,7 @@ class ChatLog:
     extra_system_prompt: str | None = None
     llm_api: llm.APIInstance | None = None
     delta_listener: Callable[[ChatLog, dict], None] | None = None
-    llm_input_provided_index = 0
+    llm_input_provided_index: int = 0
     created: datetime = field(init=False, default_factory=utcnow)
 
     def as_dict(self) -> dict[str, Any]:
