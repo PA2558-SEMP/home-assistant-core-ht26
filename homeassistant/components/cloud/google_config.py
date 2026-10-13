@@ -1,6 +1,7 @@
 """Google config for Cloud."""
 
 import asyncio
+from collections.abc import Collection
 from http import HTTPStatus
 import logging
 from typing import TYPE_CHECKING, Any, override
@@ -408,15 +409,15 @@ class CloudGoogleConfig(AbstractConfig):
 
     @callback
     @override
-    def async_get_agent_users(self) -> tuple:
+    def async_get_agent_users(self) -> Collection[str]:
         """Return known agent users."""
         if (
             not self._cloud.is_logged_in  # Can't call Cloud.username if not logged in
             or not self._prefs.google_connected
             or not self._cloud.username
         ):
-            return ()
-        return (self._cloud.username,)
+            return []
+        return [self._cloud.username]
 
     async def _async_prefs_updated(self, prefs: CloudPreferences) -> None:
         """Handle updated preferences."""
