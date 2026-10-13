@@ -299,10 +299,8 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     await hass.async_add_executor_job(get_loader)
 
     _async_register_events_and_services(hass)
-    if DOMAIN not in config:
-        return True
-
-    _async_update_entries_from_yaml(hass, config, start_import_flow=True)
+    if DOMAIN in config:
+        _async_update_entries_from_yaml(hass, config, start_import_flow=True)
     return True
 
 
