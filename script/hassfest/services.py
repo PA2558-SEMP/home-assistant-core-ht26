@@ -27,16 +27,16 @@ def exists(value: Any) -> Any:
 def unique_field_validator(fields: Any) -> Any:
     """Validate the inputs don't have duplicate keys under different sections."""
     all_fields = set()
-    for key, value in fields.items():
+    for outer_key, value in fields.items():
         if value and "fields" in value:
-            for key in value["fields"]:
-                if key in all_fields:
-                    raise vol.Invalid(f"Duplicate use of field {key} in service.")
-                all_fields.add(key)
+            for inner_key in value["fields"]:
+                if inner_key in all_fields:
+                    raise vol.Invalid(f"Duplicate use of field {inner_key} in service.")
+                all_fields.add(inner_key)
         else:
-            if key in all_fields:
-                raise vol.Invalid(f"Duplicate use of field {key} in service.")
-            all_fields.add(key)
+            if outer_key in all_fields:
+                raise vol.Invalid(f"Duplicate use of field {outer_key} in service.")
+            all_fields.add(outer_key)
 
     return fields
 

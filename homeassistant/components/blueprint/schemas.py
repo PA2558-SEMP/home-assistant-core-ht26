@@ -51,16 +51,16 @@ def version_validator(value: Any) -> str:
 def unique_input_validator(inputs: Any) -> Any:
     """Validate the inputs don't have duplicate keys under different sections."""
     all_inputs = set()
-    for key, value in inputs.items():
+    for outer_key, value in inputs.items():
         if value and CONF_INPUT in value:
-            for key in value[CONF_INPUT]:
-                if key in all_inputs:
-                    raise vol.Invalid(f"Duplicate use of input key {key} in blueprint.")
-                all_inputs.add(key)
+            for inner_key in value[CONF_INPUT]:
+                if inner_key in all_inputs:
+                    raise vol.Invalid(f"Duplicate use of input key {inner_key} in blueprint.")
+                all_inputs.add(inner_key)
         else:
-            if key in all_inputs:
-                raise vol.Invalid(f"Duplicate use of input key {key} in blueprint.")
-            all_inputs.add(key)
+            if outer_key in all_inputs:
+                raise vol.Invalid(f"Duplicate use of input key {outer_key} in blueprint.")
+            all_inputs.add(outer_key)
 
     return inputs
 
