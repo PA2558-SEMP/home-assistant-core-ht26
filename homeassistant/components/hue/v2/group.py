@@ -1,6 +1,5 @@
 """Support for Hue groups (room/zone)."""
 
-import asyncio
 from typing import Any, override
 
 from aiohue.v2 import HueBridgeV2
@@ -48,20 +47,22 @@ async def async_setup_entry(
 
     async def async_add_light(event_type: EventType, resource: GroupedLight) -> None:
         """Add Grouped Light for Hue Room/Zone."""
-        # delay group creation a bit due to a race condition where the
-        # grouped_light resource is created before the zone/room
-        retries = 5
-        while (
-            retries
-            and (group := api.groups.grouped_light.get_zone(resource.id)) is None
-        ):
-            retries -= 1
-            await asyncio.sleep(0.5)
-        if group is None:
-            # guard, just in case
+        if (group := api.groups.grouped_light.get_zone(resource.id)) is not None:
+            async_add_entities([GroupedHueLight(bridge, resource, group)])
             return
-        light = GroupedHueLight(bridge, resource, group)
-        async_add_entities([light])
+
+        # Subscribe to SSE zone creation event instead of busy-wait polling with sleep
+        @callback
+        def _async_zone_created(evt: EventType, zone: Room | Zone) -> None:
+            if getattr(zone, "grouped_light", None) == resource.id:
+                async_add_entities([GroupedHueLight(bridge, resource, zone)])
+                unsub()
+
+        unsub = api.groups.subscribe(
+            _async_zone_created,
+            event_filter=EventType.RESOURCE_ADDED,
+        )
+        config_entry.async_on_unload(unsub)
 
     # add current items
     for item in api.groups.grouped_light.items:
