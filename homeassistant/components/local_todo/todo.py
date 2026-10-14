@@ -9,6 +9,7 @@ from ical.calendar import Calendar
 from ical.calendar_stream import IcsCalendarStream
 from ical.store import TodoStore
 from ical.todo import Todo, TodoStatus
+from ical.types import RelatedTo
 
 from homeassistant.components.todo import (
     TodoItem,
@@ -104,6 +105,8 @@ def _convert_item(item: TodoItem) -> Todo:
     if todo.due and not isinstance(todo.due, datetime.datetime):
         todo.due += datetime.timedelta(days=1)
     todo.description = item.description
+    if item.parent_uid:
+        todo.related_to = [RelatedTo(uid=item.parent_uid)]
     return todo
 
 
@@ -156,6 +159,9 @@ class LocalTodoListEntity(TodoListEntity):
                     due=due,
                     description=item.description,
                     completed=item.completed,
+                    parent_uid=item.related_to[0].uid
+                    if len(item.related_to) > 0
+                    else None,
                 )
             )
         self._attr_todo_items = todo_items
@@ -192,10 +198,10 @@ class LocalTodoListEntity(TodoListEntity):
 
     @override
     async def async_move_todo_item(
-        self, uid: str, previous_uid: str | None = None
+        self, uid: str, previous_uid: str | None = None, parent_uid: str | None = None
     ) -> None:
         """Re-order an item to the To-do list."""
-        if uid == previous_uid:
+        if uid == previous_uid and not parent_uid:
             return
         async with self._calendar_lock:
             todos = self._calendar.todos
@@ -208,9 +214,15 @@ class LocalTodoListEntity(TodoListEntity):
                 raise HomeAssistantError(
                     f"Item '{previous_uid}' not found in todo list {self.entity_id}"
                 )
+            if parent_uid and parent_uid not in item_idx:
+                raise HomeAssistantError(
+                    f"Item '{parent_uid}' not found in todo list {self.entity_id}"
+                )
             dst_idx = item_idx[previous_uid] + 1 if previous_uid else 0
             src_idx = item_idx[uid]
             src_item = todos.pop(src_idx)
+            if parent_uid:
+                src_item.related_to = [RelatedTo(uid=parent_uid)]
             if dst_idx > src_idx:
                 dst_idx -= 1
             todos.insert(dst_idx, src_item)

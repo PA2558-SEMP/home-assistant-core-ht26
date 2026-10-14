@@ -228,6 +228,9 @@ class TodoItem:
     completed: datetime.datetime | None = None
     """The date and time that a to-do item was marked completed."""
 
+    parent_uid: str | None = None
+    """The parent To-do item of this To-do item."""
+
 
 _TODO_ITEM_FIELD_NAMES: tuple[str, ...] = tuple(
     field.name for field in dataclasses.fields(TodoItem)
@@ -283,7 +286,7 @@ class TodoListEntity(Entity, cached_properties=CACHED_PROPERTIES_WITH_ATTR_):
         raise NotImplementedError
 
     async def async_move_todo_item(
-        self, uid: str, previous_uid: str | None = None
+        self, uid: str, previous_uid: str | None = None, parent_uid: str | None = None
     ) -> None:
         """Move an item in the To-do list.
 
@@ -424,6 +427,7 @@ async def websocket_handle_todo_item_list(
         vol.Required("entity_id"): cv.entity_id,
         vol.Required("uid"): cv.string,
         vol.Optional("previous_uid"): cv.string,
+        vol.Optional("parent_uid"): cv.string,
     }
 )
 @websocket_api.async_response
@@ -449,7 +453,9 @@ async def websocket_handle_todo_item_move(
         return
     try:
         await entity.async_move_todo_item(
-            uid=msg["uid"], previous_uid=msg.get("previous_uid")
+            uid=msg["uid"],
+            previous_uid=msg.get("previous_uid"),
+            parent_uid=msg.get("parent_uid"),
         )
     except HomeAssistantError as ex:
         connection.send_error(msg["id"], "failed", str(ex))
