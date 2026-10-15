@@ -201,8 +201,6 @@ class LocalTodoListEntity(TodoListEntity):
         self, uid: str, previous_uid: str | None = None, parent_uid: str | None = None
     ) -> None:
         """Re-order an item to the To-do list."""
-        if uid == previous_uid and not parent_uid:
-            return
         async with self._calendar_lock:
             todos = self._calendar.todos
             item_idx: dict[str, int] = {itm.uid: idx for idx, itm in enumerate(todos)}
@@ -221,8 +219,12 @@ class LocalTodoListEntity(TodoListEntity):
             dst_idx = item_idx[previous_uid] + 1 if previous_uid else 0
             src_idx = item_idx[uid]
             src_item = todos.pop(src_idx)
+
             if parent_uid:
                 src_item.related_to = [RelatedTo(uid=parent_uid)]
+            else:
+                src_item.related_to = []
+
             if dst_idx > src_idx:
                 dst_idx -= 1
             todos.insert(dst_idx, src_item)
