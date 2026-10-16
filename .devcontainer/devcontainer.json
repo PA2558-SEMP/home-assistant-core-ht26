@@ -20,9 +20,6 @@
     "--security-opt",
     "label=disable"
   ],
-  "mounts": [
-    "source=/home/devcontainers/finalFrontEnd/home-assistant-frontend-ht26,target=/workspaces/home-assistant-frontend-ht26,type=bind,consistency=cached"
-  ],
   "customizations": {
     "vscode": {
       "extensions": [
