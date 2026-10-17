@@ -9,4 +9,6 @@ LOGGER = logging.getLogger(__package__)
 
 STORAGE_KEY = f"{DOMAIN}_favorites"
 
-VERSION = 1
+STORAGE_VERSION: Final = 1
+
+STORAGE_VERSION_MINOR: Final = 1
