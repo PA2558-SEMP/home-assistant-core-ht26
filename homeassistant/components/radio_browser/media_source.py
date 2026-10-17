@@ -27,6 +27,7 @@ from homeassistant.util.location import vincenty
 
 from . import RadioBrowserConfigEntry
 from .const import DOMAIN
+from .favorites import FavoriteRadioManager
 
 CODEC_TO_MIMETYPE = {
     "MP3": "audio/mpeg",
@@ -58,7 +59,12 @@ class RadioMediaSource(MediaSource):
     @property
     def radios(self) -> RadioBrowser:
         """Return the radio browser."""
-        return self.entry.runtime_data
+        return self.entry.runtime_data.radios
+
+    @property
+    def favorites(self) -> FavoriteRadioManager:
+        """Return the favorite radio manager."""
+        return self.entry.runtime_data.favorites
 
     @override
     async def async_resolve_media(self, item: MediaSourceItem) -> PlayMedia:
@@ -119,6 +125,7 @@ class RadioMediaSource(MediaSource):
                     *await self._async_build_by_language(radios, item),
                     *await self._async_build_local(radios, item),
                     *await self._async_build_by_country(radios, item),
+                    *await self._async_build_favorites(item),
                 ],
             )
         except (DNSError, RadioBrowserError) as e:
@@ -348,6 +355,48 @@ class RadioMediaSource(MediaSource):
                     media_class=MediaClass.DIRECTORY,
                     media_content_type=MediaType.MUSIC,
                     title="By Category",
+                    can_play=False,
+                    can_expand=True,
+                )
+            ]
+
+        return []
+
+    async def _async_build_favorites(
+        self, item: MediaSourceItem
+    ) -> list[BrowseMediaSource]:
+        """Handle browsing favorite radio stations."""
+        if item.identifier == "favorites":
+            items: list[BrowseMediaSource] = []
+            for fav in await self.favorites.async_load_favorites():
+                codec = fav.get("codec") or ""
+                if codec == "UNKNOWN" or not (
+                    mime_type := CODEC_TO_MIMETYPE.get(codec)
+                    or mimetypes.guess_type(fav.get("url_resolved") or "")[0]
+                ):
+                    continue
+                items.append(
+                    BrowseMediaSource(
+                        domain=DOMAIN,
+                        identifier=fav["uuid"],
+                        media_class=MediaClass.MUSIC,
+                        media_content_type=mime_type,
+                        title=fav["name"],
+                        can_play=True,
+                        can_expand=False,
+                        thumbnail=fav.get("favicon") or None,
+                    )
+                )
+            return items
+
+        if not item.identifier:
+            return [
+                BrowseMediaSource(
+                    domain=DOMAIN,
+                    identifier="favorites",
+                    media_class=MediaClass.DIRECTORY,
+                    media_content_type=MediaType.MUSIC,
+                    title="Favorites",
                     can_play=False,
                     can_expand=True,
                 )
