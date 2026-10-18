@@ -12,6 +12,7 @@ from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .favorites import FavoriteRadioManager, Favorites
+from .websocket_api import async_setup as async_setup_ws_api
 
 
 @dataclass
@@ -44,6 +45,7 @@ async def async_setup_entry(
         raise ConfigEntryNotReady("Could not connect to Radio Browser API") from err
 
     entry.runtime_data = RadioBrowserData(radios=radios, favorites=manager)
+    async_setup_ws_api(hass)
     return True
 
 
