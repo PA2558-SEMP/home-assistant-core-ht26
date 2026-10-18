@@ -372,6 +372,20 @@
       },
       "name": "Play specified media"
     },
+    "play_random_radio_station": {
+      "description": "Plays a random radio station from the Radio Browser integration.",
+      "fields": {
+        "country_code": {
+          "description": "Optional country code to restrict stations ('US', 'SE', 'DE')",
+          "name": "Country code"
+        },
+        "tag": {
+          "description": "Optional genre/category tag to filter stations",
+          "name": "Genre tag"
+        }
+      },
+      "name": "Play random radio station"
+    },
     "repeat_set": {
       "description": "Sets the repeat mode of a media player.",
       "fields": {

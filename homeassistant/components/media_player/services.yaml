@@ -291,3 +291,21 @@ unjoin:
       domain: media_player
       supported_features:
         - media_player.MediaPlayerEntityFeature.GROUPING
+
+play_random_radio_station:
+  target:
+    entity:
+      domain: media_player
+      supported_features:
+        - media_player.MediaPlayerEntityFeature.PLAY_MEDIA
+  fields:
+    tag:
+      required: false
+      example: "jazz"
+      selector:
+        text:
+    country_code:
+      required: false
+      example: "US"
+      selector:
+        text:
