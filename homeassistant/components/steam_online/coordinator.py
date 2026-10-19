@@ -13,7 +13,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .const import DOMAIN, SUBENTRY_TYPE_FRIEND
+from .const import DOMAIN, LIBRARY_UPDATE_INTERVAL, SUBENTRY_TYPE_FRIEND
 
 type SteamConfigEntry = ConfigEntry[SteamDataUpdateCoordinator]
 
@@ -117,6 +117,85 @@ class SteamDataUpdateCoordinator(DataUpdateCoordinator[dict[str, PlayerData]]):
 
     @override
     async def _async_update_data(self) -> dict[str, PlayerData]:
+        """Send request to the executor."""
+        try:
+            return await self.hass.async_add_executor_job(self._update)
+
+        except steam.api.HTTPTimeoutError as ex:
+            raise UpdateFailed(
+                translation_domain=DOMAIN,
+                translation_key="timeout_exception",
+            ) from ex
+        except steam.api.HTTPError as ex:
+            _LOGGER.debug("Full exception:", exc_info=True)
+            if "401" in str(ex) or "403" in str(ex):
+                raise ConfigEntryAuthFailed(
+                    translation_domain=DOMAIN,
+                    translation_key="auth_exception",
+                ) from ex
+            raise UpdateFailed(
+                translation_domain=DOMAIN,
+                translation_key="request_exception",
+            ) from ex
+
+
+@dataclass(kw_only=True, frozen=True)
+class LibraryData:
+    """Steam account and library data."""
+
+    games_owned: int | None
+    total_playtime: int | None
+    xp: int | None
+    badges: int | None
+
+
+class SteamLibraryCoordinator(DataUpdateCoordinator[LibraryData]):
+    """Slower coordinator for the main account's library and badge data."""
+
+    config_entry: SteamConfigEntry
+    player_interface: steam.api.interface
+
+    def __init__(self, hass: HomeAssistant, config_entry: SteamConfigEntry) -> None:
+        """Initialize the coordinator."""
+        super().__init__(
+            hass=hass,
+            logger=_LOGGER,
+            config_entry=config_entry,
+            name=f"{DOMAIN}_library",
+            update_interval=LIBRARY_UPDATE_INTERVAL,
+        )
+
+    @override
+    async def _async_setup(self) -> None:
+        """Set up the coordinator."""
+        steam.api.key.set(self.config_entry.data[CONF_API_KEY])
+        self.player_interface = steam.api.interface("IPlayerService")
+
+    def _update(self) -> LibraryData:
+        """Fetch data from API endpoint."""
+        if TYPE_CHECKING:
+            assert self.config_entry.unique_id
+        steamid = self.config_entry.unique_id
+
+        owned = self.player_interface.GetOwnedGames(
+            steamid=steamid, include_played_free_games=True
+        )["response"]
+        badges = self.player_interface.GetBadges(steamid=steamid)["response"]
+
+        games = owned.get("games")
+        return LibraryData(
+            games_owned=owned.get("game_count"),
+            total_playtime=(
+                sum(game.get("playtime_forever", 0) for game in games)
+                if games is not None
+                else None
+            ),
+            xp=badges.get("player_xp"),
+            badges=len(badges["badges"]) if "badges" in badges else None,
+        )
+
+    @override
+    async def _async_update_data(self) -> LibraryData:
         """Send request to the executor."""
         try:
             return await self.hass.async_add_executor_job(self._update)
