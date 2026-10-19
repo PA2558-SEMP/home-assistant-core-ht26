@@ -110,6 +110,14 @@ def _convert_item(item: TodoItem) -> Todo:
     return todo
 
 
+def _due_to_datetime(due: datetime.date | datetime.datetime) -> datetime.datetime:
+    """Normalize a due value so dates and datetimes can be compared."""
+    tz = dt_util.get_default_time_zone()
+    if isinstance(due, datetime.datetime):
+        return due if due.tzinfo else due.replace(tzinfo=tz)
+    return datetime.datetime.combine(due, datetime.time.min, tzinfo=tz)
+
+
 class LocalTodoListEntity(TodoListEntity):
     """A To-do List representation of the Shopping List."""
 
@@ -218,9 +226,18 @@ class LocalTodoListEntity(TodoListEntity):
                 )
             dst_idx = item_idx[previous_uid] + 1 if previous_uid else 0
             src_idx = item_idx[uid]
+            parent_item = todos[item_idx[parent_uid]] if parent_uid else None
             src_item = todos.pop(src_idx)
 
             if parent_uid:
+                if (
+                    parent_item is not None
+                    and src_item.due is not None
+                    and parent_item.due is not None
+                    and _due_to_datetime(src_item.due)
+                    > _due_to_datetime(parent_item.due)
+                ):
+                    src_item.due = None
                 src_item.related_to = [RelatedTo(uid=parent_uid)]
             else:
                 src_item.related_to = []
