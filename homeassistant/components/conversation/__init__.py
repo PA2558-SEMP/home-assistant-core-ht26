@@ -26,6 +26,7 @@ from .agent_manager import (
     AgentInfo,
     agent_id_validator,
     async_converse,
+    async_converse_input,
     async_get_agent,
     get_agent_manager,
 )
@@ -82,6 +83,7 @@ __all__ = [
     "UserContent",
     "async_conversation_trace_append",
     "async_converse",
+    "async_converse_input",
     "async_get_agent_info",
     "async_get_chat_log",
     "async_get_result_from_chat_log",
