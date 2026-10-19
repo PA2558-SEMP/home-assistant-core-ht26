@@ -21,6 +21,12 @@
           "unavailable": "mdi:controller-off",
           "unknown": "mdi:controller-off"
         }
+      },
+      "friends_online": {
+        "default": "mdi:account-group"
+      },
+      "friends_playing": {
+        "default": "mdi:gamepad-variant"
       }
     }
   }

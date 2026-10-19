@@ -39,6 +39,10 @@ class SteamSensor(StrEnum):
     NOW_PLAYING = "now_playing"
     LEVEL = "level"
 
+    # Friend Activity
+    FRIENDS_ONLINE = "friends_online"
+    FRIENDS_PLAYING = "friends_playing"
+
 
 @dataclass(kw_only=True, frozen=True)
 class SteamSensorEntityDescription(SensorEntityDescription):
@@ -125,6 +129,32 @@ SENSOR_DESCRIPTIONS: tuple[SteamSensorEntityDescription, ...] = (
     ),
 )
 
+@dataclass(kw_only=True, frozen=True)
+class FriendActivitySensorEntityDescription(SensorEntityDescription):
+    """Description of a friend activity sensor."""
+
+    value_fn: Callable[[list[PlayerData]], int]
+
+
+FRIEND_ACTIVITY_DESCRIPTIONS = (
+    FriendActivitySensorEntityDescription(
+        key=SteamSensor.FRIENDS_ONLINE,
+        translation_key=SteamSensor.FRIENDS_ONLINE,
+        value_fn=lambda friends: sum(
+            friend.personastate != 0 for friend in friends
+        ),
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+    FriendActivitySensorEntityDescription(
+        key=SteamSensor.FRIENDS_PLAYING,
+        translation_key=SteamSensor.FRIENDS_PLAYING,
+        value_fn=lambda friends: sum(
+            bool(friend.gameid) for friend in friends
+        ),
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+)
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -150,6 +180,13 @@ async def async_setup_entry(
             ],
             config_subentry_id=subentry.subentry_id,
         )
+        if entry.unique_id in coordinator.data:
+            async_add_entities(
+                SteamFriendActivitySensorEntity(
+                    coordinator, entry, description
+                )
+                for description in FRIEND_ACTIVITY_DESCRIPTIONS
+            )
 
 
 class SteamSensorEntity(SteamEntity, SensorEntity):
@@ -182,3 +219,38 @@ class SteamSensorEntity(SteamEntity, SensorEntity):
             if (fn := self.entity_description.extra_state_attributes_fn) is not None
             else super().extra_state_attributes
         )
+
+class SteamFriendActivitySensorEntity(SteamEntity, SensorEntity):
+    """Sensor representing aggregated Steam friend activity."""
+
+    entity_description: FriendActivitySensorEntityDescription
+
+    def __init__(
+        self,
+        coordinator,
+        entry: SteamConfigEntry,
+        description: FriendActivitySensorEntityDescription,
+    ) -> None:
+        """Initialize the friend activity sensor."""
+        super().__init__(coordinator, entry.unique_id, description)
+        self._entry = entry
+
+    @property
+    @override
+    def native_value(self) -> int:
+        """Calculate activity among configured Steam friends."""
+        friend_ids = (
+            subentry.unique_id
+            for subentry in self._entry.get_subentries_of_type(
+                SUBENTRY_TYPE_FRIEND
+            )
+            if subentry.unique_id
+        )
+
+        friends = [
+            self.coordinator.data[steamid]
+            for steamid in friend_ids
+            if steamid in self.coordinator.data
+        ]
+
+        return self.entity_description.value_fn(friends)

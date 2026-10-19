@@ -149,6 +149,12 @@
         "state_attributes": {
           "app_id": { "name": "Steam App ID" }
         }
+      },
+      "friends_online": {
+        "name": "Friends online"
+      },
+      "friends_playing": {
+        "name": "Friends playing"
       }
     }
   },
