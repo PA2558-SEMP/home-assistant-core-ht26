@@ -18,7 +18,7 @@ from homeassistant.components.todo import (
     TodoListEntityFeature,
 )
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import HomeAssistantError
+from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.setup import SetupPhases, async_pause_setup
 from homeassistant.util import dt as dt_util
@@ -174,6 +174,40 @@ class LocalTodoListEntity(TodoListEntity):
             )
         self._attr_todo_items = todo_items
 
+    def _validate_due_rules(self, todo: Todo) -> None:
+        todos = self._calendar.todos
+        existing = next((t for t in todos if t.uid == todo.uid), None)
+        if todo.due is None or (existing and existing.due == todo.due):
+            return
+
+        new_due = _due_to_datetime(todo.due)
+
+        # rule for a child cant be due after its parent
+        parent_uid = todo.related_to[0].uid if todo.related_to else None
+        if parent_uid and parent_uid != todo.uid:
+            parent = next((t for t in todos if t.uid == parent_uid), None)
+            if (
+                parent is not None
+                and parent.due is not None
+                and new_due > _due_to_datetime(parent.due)
+            ):
+                raise ServiceValidationError(
+                    "A subtask cannot be due after its parent task"
+                )
+
+        # rule for a parent cant be due before any of its children
+        for child in todos:
+            if (
+                child.uid != todo.uid
+                and child.related_to
+                and child.related_to[0].uid == todo.uid
+                and child.due is not None
+                and _due_to_datetime(child.due) > new_due
+            ):
+                raise ServiceValidationError(
+                    "A parent task cannot be due before its subtasks"
+                )
+
     @override
     async def async_create_todo_item(self, item: TodoItem) -> None:
         """Add an item to the To-do list."""
@@ -189,6 +223,7 @@ class LocalTodoListEntity(TodoListEntity):
         """Update an item in the To-do list."""
         todo = _convert_item(item)
         async with self._calendar_lock:
+            self._validate_due_rules(todo)
             todo_store = self._new_todo_store()
             await self.hass.async_add_executor_job(todo_store.edit, todo.uid, todo)
             await self.async_save()
