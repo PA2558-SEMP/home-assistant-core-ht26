@@ -152,9 +152,19 @@ class NewsItem:
 
 
 @dataclass(kw_only=True, frozen=True)
+class LibraryGame:
+    """Steam specific game data."""
+
+    app_id: int
+    name: str
+    last_played: int | None
+
+
+@dataclass(kw_only=True, frozen=True)
 class LibraryData:
     """Steam account and library data."""
 
+    games: list[LibraryGame] | None
     games_owned: int | None
     total_playtime: int | None
     xp: int | None
@@ -237,13 +247,27 @@ class SteamLibraryCoordinator(DataUpdateCoordinator[LibraryData]):
         steamid = self.config_entry.unique_id
 
         owned = self.player_interface.GetOwnedGames(
-            steamid=steamid, include_played_free_games=True
+            steamid=steamid, include_played_free_games=True, include_appinfo=1
         )["response"]
         badges = self.player_interface.GetBadges(steamid=steamid)["response"]
 
         games = owned.get("games")
+        library_games = (
+            [
+                LibraryGame(
+                    app_id=game["appid"],
+                    name=game["name"],
+                    last_played=game.get("rtime_last_played"),
+                )
+                for game in games
+            ]
+            if games is not None
+            else None
+        )
+
         return LibraryData(
             games_owned=owned.get("game_count"),
+            games=library_games,
             total_playtime=(
                 sum(game.get("playtime_forever", 0) for game in games)
                 if games is not None

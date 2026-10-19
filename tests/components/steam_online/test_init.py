@@ -11,6 +11,7 @@ from homeassistant.components.steam_online.const import (
     DOMAIN,
     SUBENTRY_TYPE_FRIEND,
 )
+from homeassistant.components.steam_online.coordinator import LibraryGame
 from homeassistant.config_entries import SOURCE_REAUTH, ConfigEntryState
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
@@ -114,6 +115,39 @@ async def test_device_info(
             (DOMAIN, ACCOUNT_1), config_entry.entry_id
         )
         == snapshot
+    )
+
+
+async def test_library_games_data(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    steam_api: MagicMock,
+) -> None:
+    """Test library game data."""
+    config_entry.add_to_hass(hass)
+
+    await hass.config_entries.async_setup(config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    library_data = config_entry.runtime_data.library_coordinator.data
+
+    assert library_data.games == [
+        LibraryGame(
+            app_id=20900,
+            name="The Witcher: Enhanced Edition",
+            last_played=1782145718,
+        ),
+        LibraryGame(
+            app_id=1180660,
+            name="Tell Me Why",
+            last_played=1642893397,
+        ),
+    ]
+
+    steam_api.return_value.GetOwnedGames.assert_any_call(
+        steamid=ACCOUNT_1,
+        include_played_free_games=True,
+        include_appinfo=1,
     )
 
 
