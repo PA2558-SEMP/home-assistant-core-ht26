@@ -9,6 +9,12 @@
       "account": {
         "default": "mdi:steam"
       },
+      "badges": {
+        "default": "mdi:medal"
+      },
+      "games_owned": {
+        "default": "mdi:bookshelf"
+      },
       "last_online": {
         "default": "mdi:account-clock"
       },
@@ -21,6 +27,12 @@
           "unavailable": "mdi:controller-off",
           "unknown": "mdi:controller-off"
         }
+      },
+      "total_playtime": {
+        "default": "mdi:timer-outline"
+      },
+      "xp": {
+        "default": "mdi:star-circle"
       }
     }
   }
