@@ -1,5 +1,6 @@
 """Steam constants."""
 
+from datetime import timedelta
 from typing import Final
 
 CONF_ACCOUNT = "account"
@@ -7,6 +8,8 @@ CONF_ACCOUNTS = "accounts"
 
 DATA_KEY_COORDINATOR = "coordinator"
 DOMAIN: Final = "steam_online"
+
+LIBRARY_UPDATE_INTERVAL = timedelta(minutes=15)
 
 
 PLACEHOLDERS = {
