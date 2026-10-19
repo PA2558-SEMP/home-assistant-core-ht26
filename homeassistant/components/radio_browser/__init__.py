@@ -9,6 +9,10 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
+from .random_station import async_get_random_station
+
+__all__ = ["async_get_random_station"]
+
 type RadioBrowserConfigEntry = ConfigEntry[RadioBrowser]
 
 
