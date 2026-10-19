@@ -208,6 +208,40 @@ class LocalTodoListEntity(TodoListEntity):
                     "A parent task cannot be due before its subtasks"
                 )
 
+    def _descendant_uids(self, uid: str) -> list[str]:
+        """Return the uids of all subtasks (children, grandchildren, ...) of a task."""
+        todos = self._calendar.todos
+        result: list[str] = []
+        seen = {uid}
+        queue = [uid]
+        while queue:
+            current = queue.pop()
+            for t in todos:
+                if (
+                    t.related_to
+                    and t.related_to[0].uid == current
+                    and t.uid not in seen
+                ):
+                    seen.add(t.uid)
+                    result.append(t.uid)
+                    queue.append(t.uid)
+        return result
+
+    def _ancestor_uids(self, uid: str) -> list[str]:
+        """Return the uids of a task's parent, grandparent, ... up to the top."""
+        by_uid = {t.uid: t for t in self._calendar.todos}
+        result: list[str] = []
+        seen = {uid}
+        current = by_uid.get(uid)
+        while current and current.related_to:
+            parent_uid = current.related_to[0].uid
+            if parent_uid in seen:
+                break
+            seen.add(parent_uid)
+            result.append(parent_uid)
+            current = by_uid.get(parent_uid)
+        return result
+
     @override
     async def async_create_todo_item(self, item: TodoItem) -> None:
         """Add an item to the To-do list."""
@@ -224,8 +258,35 @@ class LocalTodoListEntity(TodoListEntity):
         todo = _convert_item(item)
         async with self._calendar_lock:
             self._validate_due_rules(todo)
+            previous = next(
+                (t for t in self._calendar.todos if t.uid == todo.uid), None
+            )
+            was_completed = (
+                previous is not None
+                and ICS_TODO_STATUS_MAP.get(previous.status or TodoStatus.NEEDS_ACTION)
+                == TodoItemStatus.COMPLETED
+            )
             todo_store = self._new_todo_store()
+            original = list(self._calendar.todos)
             await self.hass.async_add_executor_job(todo_store.edit, todo.uid, todo)
+            # ical's edit() deletes an item's children as a side effect, so restore the original list, using the freshly edited object for this item
+            edited = next(t for t in self._calendar.todos if t.uid == todo.uid)
+            self._calendar.todos[:] = [
+                edited if t.uid == todo.uid else t for t in original
+            ]
+            # check if the parent has checked all of the subtasks
+            if item.status == TodoItemStatus.COMPLETED and not was_completed:
+                descendants = set(self._descendant_uids(todo.uid))
+                for t in self._calendar.todos:
+                    if t.uid in descendants:
+                        t.status = TodoStatus.COMPLETED
+                        t.completed = dt_util.utcnow()
+            if item.status == TodoItemStatus.NEEDS_ACTION and was_completed:
+                ancestors = set(self._ancestor_uids(todo.uid))
+                for t in self._calendar.todos:
+                    if t.uid in ancestors:
+                        t.status = TodoStatus.NEEDS_ACTION
+                        t.completed = None
             await self.async_save()
         await self.async_update_ha_state(force_refresh=True)
 
