@@ -241,7 +241,9 @@ async def async_setup_entry(
             ]
         )
     async_add_entities(
-        SteamLibSensorEntity(entry.runtime_data.library, entry.unique_id, description)
+        SteamLibSensorEntity(
+            entry.runtime_data.library_coordinator, entry.unique_id, description
+        )
         for description in LIB_SENSOR_DESCRIPTIONS
     )
 
