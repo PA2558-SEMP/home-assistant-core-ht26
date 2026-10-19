@@ -138,6 +138,12 @@
           "real_name": { "name": "Real name" }
         }
       },
+      "badges": {
+        "name": "Badges"
+      },
+      "games_owned": {
+        "name": "Games owned"
+      },
       "last_online": {
         "name": "Last online"
       },
@@ -163,6 +169,12 @@
       },
       "friends_playing": {
         "name": "Friends playing"
+      },
+      "total_playtime": {
+        "name": "Total playtime"
+      },
+      "xp": {
+        "name": "XP"
       }
     }
   },
