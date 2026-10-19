@@ -11,7 +11,10 @@ from homeassistant.components.steam_online.const import (
     DOMAIN,
     SUBENTRY_TYPE_FRIEND,
 )
-from homeassistant.components.steam_online.coordinator import LibraryGame
+from homeassistant.components.steam_online.coordinator import (
+    AchievementGame,
+    LibraryGame,
+)
 from homeassistant.config_entries import SOURCE_REAUTH, ConfigEntryState
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
@@ -148,6 +151,38 @@ async def test_library_games_data(
         steamid=ACCOUNT_1,
         include_played_free_games=True,
         include_appinfo=1,
+    )
+
+
+async def test_achievement_games_data(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    steam_api: MagicMock,
+) -> None:
+    """Test achievement game data."""
+    config_entry.add_to_hass(hass)
+
+    await hass.config_entries.async_setup(config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    achievements_games = (
+        config_entry.runtime_data.library_coordinator.data.achievement_games
+    )
+
+    assert achievements_games == [
+        AchievementGame(
+            app_id=20900,
+            total_achievements=73,
+        ),
+        AchievementGame(
+            app_id=1180660,
+            total_achievements=17,
+        ),
+    ]
+
+    steam_api.return_value.GetTopAchievementsForGames.assert_any_call(
+        steamid=ACCOUNT_1,
+        appids=[20900, 1180660],
     )
 
 

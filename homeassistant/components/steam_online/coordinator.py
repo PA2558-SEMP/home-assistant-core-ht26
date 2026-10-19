@@ -13,7 +13,12 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .const import DOMAIN, LIBRARY_UPDATE_INTERVAL, SUBENTRY_TYPE_FRIEND
+from .const import (
+    ACHIEVEMENT_LIMIT,
+    DOMAIN,
+    LIBRARY_UPDATE_INTERVAL,
+    SUBENTRY_TYPE_FRIEND,
+)
 
 type SteamConfigEntry = ConfigEntry[SteamDataUpdateCoordinator]
 
@@ -150,10 +155,19 @@ class LibraryGame:
 
 
 @dataclass(kw_only=True, frozen=True)
+class AchievementGame:
+    """Steam game achievement data."""
+
+    app_id: int
+    total_achievements: int
+
+
+@dataclass(kw_only=True, frozen=True)
 class LibraryData:
     """Steam account and library data."""
 
     games: list[LibraryGame] | None
+    achievement_games: list[AchievementGame] | None
     games_owned: int | None
     total_playtime: int | None
     xp: int | None
@@ -207,9 +221,39 @@ class SteamLibraryCoordinator(DataUpdateCoordinator[LibraryData]):
             else None
         )
 
+        achievement_games: list[AchievementGame] | None = None
+
+        if library_games is not None:
+            achievement_games = []
+
+            recently_played_games = [
+                game for game in library_games if game.last_played is not None
+            ]
+            recently_played_games.sort(
+                key=lambda game: game.last_played or 0, reverse=True
+            )
+            recently_played_games = recently_played_games[:ACHIEVEMENT_LIMIT]
+
+            if recently_played_games:
+                game_ids = [game.app_id for game in recently_played_games]
+
+                achievement_re = self.player_interface.GetTopAchievementsForGames(
+                    steamid=steamid,
+                    appids=game_ids,
+                )["response"]
+
+                achievement_games = [
+                    AchievementGame(
+                        app_id=game["appid"],
+                        total_achievements=game["total_achievements"],
+                    )
+                    for game in achievement_re.get("games", [])
+                ]
+
         return LibraryData(
             games_owned=owned.get("game_count"),
             games=library_games,
+            achievement_games=achievement_games,
             total_playtime=(
                 sum(game.get("playtime_forever", 0) for game in games)
                 if games is not None

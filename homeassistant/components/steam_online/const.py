@@ -10,7 +10,7 @@ DATA_KEY_COORDINATOR = "coordinator"
 DOMAIN: Final = "steam_online"
 
 LIBRARY_UPDATE_INTERVAL = timedelta(minutes=15)
-
+ACHIEVEMENT_LIMIT = 15
 
 PLACEHOLDERS = {
     "api_key_url": "https://steamcommunity.com/dev/apikey",
