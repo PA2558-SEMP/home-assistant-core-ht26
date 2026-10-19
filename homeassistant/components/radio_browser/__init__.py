@@ -12,7 +12,10 @@ from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .favorites import FavoriteRadioManager, Favorites
+from .random_station import async_get_random_station
 from .websocket_api import async_setup as async_setup_ws_api
+
+__all__ = ["async_get_random_station"]
 
 
 @dataclass

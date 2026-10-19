@@ -25,6 +25,7 @@ from yarl import URL
 
 from homeassistant.components import websocket_api
 from homeassistant.components.http import KEY_AUTHENTICATED, HomeAssistantView
+from homeassistant.components.radio_browser import async_get_random_station
 from homeassistant.components.websocket_api import ERR_NOT_SUPPORTED, ERR_UNKNOWN_ERROR
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (  # noqa: F401
@@ -51,7 +52,7 @@ from homeassistant.const import (  # noqa: F401
     STATE_STANDBY,
     EntityStateAttribute,
 )
-from homeassistant.core import HomeAssistant, SupportsResponse
+from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.entity import Entity, EntityDescription
@@ -108,6 +109,7 @@ from .const import (  # noqa: F401
     SERVICE_CLEAR_PLAYLIST,
     SERVICE_JOIN,
     SERVICE_PLAY_MEDIA,
+    SERVICE_PLAY_RANDOM_RADIO,
     SERVICE_SEARCH_MEDIA,
     SERVICE_SELECT_SOUND_MODE,
     SERVICE_SELECT_SOURCE,
@@ -286,6 +288,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
     websocket_api.async_register_command(hass, websocket_browse_media)
     websocket_api.async_register_command(hass, websocket_search_media)
+    websocket_api.async_register_command(hass, websocket_play_random_radio)
     hass.http.register_view(MediaPlayerImageView(component))
 
     await component.async_setup(config)
@@ -474,6 +477,57 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         {vol.Required(ATTR_MEDIA_REPEAT): vol.Coerce(RepeatMode)},
         "async_set_repeat",
         [MediaPlayerEntityFeature.REPEAT_SET],
+    )
+
+    async def _handle_play_random_radio(
+        service_call: ServiceCall,
+    ) -> None:
+        """Handle the service call to play a random radio station."""
+        entity_ids: list[str] = service_call.data.get("entity_id", [])
+        tag: str | None = service_call.data.get("tag")
+        country_code: str | None = service_call.data.get("country_code")
+
+        result = await async_get_random_station(
+            hass, tag=tag, country_code=country_code
+        )
+        if result is None:
+            _LOGGER.warning("Random_radio_station: No random station found")
+            return
+
+        for entity_id in entity_ids:
+            player = hass.data[DATA_COMPONENT].get_entity(entity_id)
+            if player is None:
+                _LOGGER.warning("Random_radio_station: Entity %s not found", entity_id)
+                continue
+            if MediaPlayerEntityFeature.PLAY_MEDIA not in player.supported_features:
+                _LOGGER.warning(
+                    "Random_radio_station: Entity %s does not support PLAY_MEDIA",
+                    entity_id,
+                )
+                continue
+            await player.async_play_media(
+                media_type=result.mime_type,
+                media_id=result.url,
+            )
+            _LOGGER.debug(
+                "Random_radio_station: Playing random station %s on entity %s",
+                result.name,
+                entity_id,
+            )
+
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_PLAY_RANDOM_RADIO,
+        _handle_play_random_radio,
+        schema=vol.Schema(
+            {
+                vol.Required("entity_id"): cv.comp_entity_ids,
+                vol.Optional("tag"): cv.string,
+                vol.Optional("country_code"): vol.All(
+                    cv.string, vol.Length(min=2, max=2), vol.Upper
+                ),
+            }
+        ),
     )
 
     return True
@@ -1513,3 +1567,62 @@ async def async_fetch_image(
         logger.warning("Error retrieving proxied image from %s", url)
 
     return content, content_type
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "media_player/play_random_radio_station",
+        vol.Required("entity_id"): cv.entity_id,
+        vol.Optional("tag"): str,
+        vol.Optional("country_code"): vol.All(str, vol.Length(min=2, max=2), vol.Upper),
+    }
+)
+@websocket_api.async_response
+async def websocket_play_random_radio(
+    hass: HomeAssistant,
+    connection: websocket_api.connection.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Play random station on a media player."""
+    entity_id: str = msg["entity_id"]
+    tag: str | None = msg.get("tag")
+    country_code: str | None = msg.get("country_code")
+
+    player = hass.data[DATA_COMPONENT].get_entity(entity_id)
+    if player is None:
+        connection.send_error(msg["id"], "entity_not_found", "Entity not found")
+        return
+    if MediaPlayerEntityFeature.PLAY_MEDIA not in player.supported_features:
+        connection.send_message(
+            websocket_api.error_message(
+                msg["id"],
+                ERR_NOT_SUPPORTED,
+                "Entity does not support playing media",
+            )
+        )
+        return
+
+    result = await async_get_random_station(hass, tag=tag, country_code=country_code)
+    if result is None:
+        connection.send_message(
+            websocket_api.error_message(
+                msg["id"],
+                ERR_UNKNOWN_ERROR,
+                "Could not fetch a random station from Radio Browser",
+            )
+        )
+        return
+
+    await player.async_play_media(
+        media_type=result.mime_type,
+        media_id=result.url,
+    )
+
+    connection.send_result(
+        msg["id"],
+        {
+            "station_name": result.name,
+            "url": result.url,
+            "mime_type": result.mime_type,
+        },
+    )
