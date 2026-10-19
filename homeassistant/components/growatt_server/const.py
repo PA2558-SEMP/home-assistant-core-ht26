@@ -23,8 +23,8 @@ SERVER_URLS_NAMES = {
     "australia_new_zealand": "https://openapi-au.growatt.com/",
     "china": "https://openapi-cn.growatt.com/",
     "other_regions": "https://openapi.growatt.com/",
-    "smten_server": "http://server.smten.com/",
-    "era_server": "http://ess-server.atesspower.com/",
+    "smten_server": "https://server.smten.com/",
+    "era_server": "https://ess-server.atesspower.com/",
 }
 
 DEPRECATED_URLS = [

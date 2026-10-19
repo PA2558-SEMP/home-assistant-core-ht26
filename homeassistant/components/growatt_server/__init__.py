@@ -32,6 +32,7 @@ import logging
 import growattServer
 from growattServer import GrowattV1ApiErrorCode
 from requests import RequestException
+from yarl import URL
 
 from homeassistant.const import CONF_PASSWORD, CONF_TOKEN, CONF_URL, CONF_USERNAME
 from homeassistant.core import HomeAssistant
@@ -57,6 +58,7 @@ from .const import (
     DOMAIN,
     LOGIN_INVALID_AUTH_CODE,
     PLATFORMS,
+    SERVER_URLS_NAMES,
     SUPPORTED_DEVICE_TYPES,
     V1_DEVICE_TYPES,
 )
@@ -330,6 +332,15 @@ async def async_setup_entry(
     # If the URL has been deprecated then change to the default instead
     if url in DEPRECATED_URLS:
         url = DEFAULT_URL
+        new_data = dict(config_entry.data)
+        new_data[CONF_URL] = url
+        hass.config_entries.async_update_entry(config_entry, data=new_data)
+
+    # Entries created before these servers moved to HTTPS still store the HTTP URL
+    if (parsed_url := URL(url)).scheme == "http" and (
+        https_url := str(parsed_url.with_scheme("https"))
+    ) in SERVER_URLS_NAMES.values():
+        url = https_url
         new_data = dict(config_entry.data)
         new_data[CONF_URL] = url
         hass.config_entries.async_update_entry(config_entry, data=new_data)
