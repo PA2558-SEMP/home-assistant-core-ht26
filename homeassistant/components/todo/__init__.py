@@ -4,6 +4,7 @@ from collections.abc import Callable, Iterable
 import copy
 import dataclasses
 import datetime
+import inspect
 import logging
 from typing import Any, final, override
 
@@ -452,11 +453,18 @@ async def websocket_handle_todo_item_move(
         )
         return
     try:
-        await entity.async_move_todo_item(
-            uid=msg["uid"],
-            previous_uid=msg.get("previous_uid"),
-            parent_uid=msg.get("parent_uid"),
-        )
+        move_args = {
+            "uid": msg["uid"],
+            "previous_uid": msg.get("previous_uid"),
+        }
+
+        # Only include parent_uid if the message has it and the entity method supports it
+        if "parent_uid" in msg and msg["parent_uid"] is not None:
+            sig = inspect.signature(entity.async_move_todo_item)
+            if "parent_uid" in sig.parameters:
+                move_args["parent_uid"] = msg["parent_uid"]
+
+        await entity.async_move_todo_item(**move_args)
     except HomeAssistantError as ex:
         connection.send_error(msg["id"], "failed", str(ex))
     else:
