@@ -15,6 +15,13 @@
       "level": {
         "default": "mdi:trophy-award"
       },
+      "news": {
+        "default": "mdi:newspaper",
+        "state": {
+          "unavailable": "mdi:newspaper-remove",
+          "unknown": "mdi:newspaper-remove"
+        }
+      },
       "now_playing": {
         "default": "mdi:controller",
         "state": {

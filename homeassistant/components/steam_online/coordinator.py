@@ -9,11 +9,11 @@ import steam.api
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_API_KEY
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .const import DOMAIN, LIBRARY_UPDATE_INTERVAL, SUBENTRY_TYPE_FRIEND
+from .const import DOMAIN, LIBRARY_UPDATE_INTERVAL, NEWS_MAX_LENGTH, SUBENTRY_TYPE_FRIEND 
 
 type SteamConfigEntry = ConfigEntry[SteamDataUpdateCoordinator]
 
@@ -141,6 +141,17 @@ class SteamDataUpdateCoordinator(DataUpdateCoordinator[dict[str, PlayerData]]):
 
 
 @dataclass(kw_only=True, frozen=True)
+class NewsItem:
+    """Latest news items to get from a game."""
+
+    appid: str
+    title: str
+    url: str
+    date: int
+    contents: str
+
+
+@dataclass(kw_only=True, frozen=True)
 class LibraryData:
     """Steam account and library data."""
 
@@ -148,6 +159,7 @@ class LibraryData:
     total_playtime: int | None
     xp: int | None
     badges: int | None
+    news: NewsItem | None = None
 
 
 class SteamLibraryCoordinator(DataUpdateCoordinator[LibraryData]):
@@ -155,8 +167,14 @@ class SteamLibraryCoordinator(DataUpdateCoordinator[LibraryData]):
 
     config_entry: SteamConfigEntry
     player_interface: steam.api.interface
+    news_interface: steam.api.interface
 
-    def __init__(self, hass: HomeAssistant, config_entry: SteamConfigEntry) -> None:
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        config_entry: SteamConfigEntry,
+        player_coordinator: SteamDataUpdateCoordinator,
+    ) -> None:
         """Initialize the coordinator."""
         super().__init__(
             hass=hass,
@@ -165,14 +183,54 @@ class SteamLibraryCoordinator(DataUpdateCoordinator[LibraryData]):
             name=f"{DOMAIN}_library",
             update_interval=LIBRARY_UPDATE_INTERVAL,
         )
+        self.player_coordinator = player_coordinator
+        self._gameid: str | None = None
 
     @override
     async def _async_setup(self) -> None:
         """Set up the coordinator."""
         steam.api.key.set(self.config_entry.data[CONF_API_KEY])
         self.player_interface = steam.api.interface("IPlayerService")
+        self.news_interface = steam.api.interface("ISteamNews")
+        self.config_entry.async_on_unload(
+            self.player_coordinator.async_add_listener(self._handle_player_update)
+        )
 
-    def _update(self) -> LibraryData:
+    def _current_gameid(self) -> str | None:
+        """Return the game the main account is playing, if any."""
+        player = self.player_coordinator.data.get(self.config_entry.unique_id or "")
+        return player.gameid if player else None
+
+    @callback
+    def _handle_player_update(self) -> None:
+        """Refresh right away when the main account switches game."""
+        if self._current_gameid() != self._gameid:
+            self.config_entry.async_create_task(self.hass, self.async_request_refresh())
+
+    def _fetch_news(self, gameid: str | None) -> NewsItem | None:
+        """Fetch the latest news for a game, keeping the old item on errors."""
+        if gameid is None:
+            return None
+        try:
+            items = self.news_interface.GetNewsForApp(
+                version=2, appid=gameid, count=1, maxlength=NEWS_MAX_LENGTH
+            )["appnews"]["newsitems"]
+        except steam.api.HTTPError:
+            # News is optional, so never fail the refresh or start reauth for it
+            _LOGGER.debug("Could not fetch news for %s", gameid, exc_info=True)
+            old = self.data.news if self.data else None
+            return old if old and old.appid == gameid else None
+        if not items:
+            return None
+        return NewsItem(
+            appid=gameid,
+            title=items[0]["title"],
+            url=items[0]["url"],
+            date=items[0]["date"],
+            contents=items[0]["contents"],
+        )
+
+    def _update(self, gameid: str | None) -> LibraryData:
         """Fetch data from API endpoint."""
         if TYPE_CHECKING:
             assert self.config_entry.unique_id
@@ -193,13 +251,15 @@ class SteamLibraryCoordinator(DataUpdateCoordinator[LibraryData]):
             ),
             xp=badges.get("player_xp"),
             badges=len(badges["badges"]) if "badges" in badges else None,
+            news=self._fetch_news(gameid),
         )
 
     @override
     async def _async_update_data(self) -> LibraryData:
         """Send request to the executor."""
+        self._gameid = self._current_gameid()
         try:
-            return await self.hass.async_add_executor_job(self._update)
+            return await self.hass.async_add_executor_job(self._update, self._gameid)
 
         except steam.api.HTTPTimeoutError as ex:
             raise UpdateFailed(

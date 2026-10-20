@@ -10,6 +10,7 @@ DATA_KEY_COORDINATOR = "coordinator"
 DOMAIN: Final = "steam_online"
 
 LIBRARY_UPDATE_INTERVAL = timedelta(minutes=15)
+NEWS_MAX_LENGTH = 300
 
 
 PLACEHOLDERS = {
