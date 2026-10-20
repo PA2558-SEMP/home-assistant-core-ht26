@@ -80,5 +80,8 @@ def mock_steam_api() -> Generator[MagicMock]:
         client.GetPlayerSummaries.return_value = load_json_object_fixture(
             "GetPlayerSummaries.json", DOMAIN
         )
+        client.GetNewsForApp.return_value = load_json_object_fixture(
+            "GetNewsForApp.json", DOMAIN
+        )
 
         yield mock_client
