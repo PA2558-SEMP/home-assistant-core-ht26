@@ -1,0 +1,18 @@
+{
+  "response": {
+    "achievements": [
+      {
+        "internal_key": "1st achievement",
+        "unlocked": 1
+      },
+      {
+        "internal_key": "2nd achievement",
+        "unlocked": 0
+      },
+      {
+        "internal_key": "3rd achievement",
+        "unlocked": 1
+      }
+    ]
+  }
+}

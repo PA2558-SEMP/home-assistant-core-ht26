@@ -81,3 +81,52 @@ async def test_news_unknown(
     assert config_entry.state is ConfigEntryState.LOADED
     assert (state := hass.states.get("sensor.testaccount1_latest_news"))
     assert state.state == STATE_UNKNOWN
+
+
+async def test_player_and_library_sensors_update_independently(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    steam_api: MagicMock,
+) -> None:
+    """Test player and library sensors use their own coordinators independently of each other."""
+    config_entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    library_coordinator = config_entry.runtime_data.library_coordinator
+    coordinator = config_entry.runtime_data
+
+    assert (player_state := hass.states.get("sensor.testaccount1"))
+    assert player_state.state == "online"
+    assert (games_owned_state := hass.states.get("sensor.testaccount1_games_owned"))
+    assert games_owned_state.state == "1"
+
+    # prepare both api responses at the same time
+    player_response = await async_load_json_object_fixture(
+        hass, "GetPlayerSummaries.json", DOMAIN
+    )
+    player_response["response"]["players"]["player"][0]["personastate"] = 2
+    steam_api.return_value.GetPlayerSummaries.return_value = player_response
+
+    owned_games_response = await async_load_json_object_fixture(
+        hass, "GetOwnedGames.json", DOMAIN
+    )
+    owned_games_response["response"]["game_count"] = 2
+    steam_api.return_value.GetOwnedGames.return_value = owned_games_response
+
+    # refresh the coordinators one after another
+    await coordinator.async_refresh()
+    await hass.async_block_till_done()
+
+    assert (player_state := hass.states.get("sensor.testaccount1"))
+    assert player_state.state == "busy"
+    assert (games_owned_state := hass.states.get("sensor.testaccount1_games_owned"))
+    assert games_owned_state.state == "1"
+
+    await library_coordinator.async_refresh()
+    await hass.async_block_till_done()
+
+    assert (player_state := hass.states.get("sensor.testaccount1"))
+    assert player_state.state == "busy"
+    assert (games_owned_state := hass.states.get("sensor.testaccount1_games_owned"))
+    assert games_owned_state.state == "2"

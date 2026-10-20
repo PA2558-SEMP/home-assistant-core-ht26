@@ -138,6 +138,18 @@
           "real_name": { "name": "Real name" }
         }
       },
+      "badges": {
+        "name": "Badges"
+      },
+      "friends_online": {
+        "name": "Friends online"
+      },
+      "friends_playing": {
+        "name": "Friends playing"
+      },
+      "games_owned": {
+        "name": "Games owned"
+      },
       "last_online": {
         "name": "Last online"
       },
@@ -157,6 +169,12 @@
         "state_attributes": {
           "app_id": { "name": "Steam App ID" }
         }
+      },
+      "total_playtime": {
+        "name": "Total playtime"
+      },
+      "xp": {
+        "name": "XP"
       }
     }
   },

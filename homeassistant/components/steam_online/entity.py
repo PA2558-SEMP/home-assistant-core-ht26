@@ -7,7 +7,7 @@ from homeassistant.helpers.entity import EntityDescription
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
-from .coordinator import SteamDataUpdateCoordinator
+from .coordinator import SteamDataUpdateCoordinator, SteamLibraryCoordinator
 
 
 class SteamEntity(CoordinatorEntity[SteamDataUpdateCoordinator]):
@@ -40,3 +40,22 @@ class SteamEntity(CoordinatorEntity[SteamDataUpdateCoordinator]):
     def available(self) -> bool:
         """Return True if entity is available."""
         return super().available and self._steamid in self.coordinator.data
+
+
+class SteamLibEntity(CoordinatorEntity[SteamLibraryCoordinator]):
+    """Representation of the library entities."""
+
+    _attr_has_entity_name = True
+
+    def __init__(
+        self,
+        coordinator: SteamLibraryCoordinator,
+        steamid: str,
+        description: EntityDescription,
+    ) -> None:
+        """Initialize a Steam library entity."""
+
+        super().__init__(coordinator)
+        self.entity_description = description
+        self._attr_unique_id = f"{steamid}_{description.key}"
+        self._attr_device_info = DeviceInfo(identifiers={(DOMAIN, steamid)})
