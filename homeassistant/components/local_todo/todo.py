@@ -182,7 +182,7 @@ class LocalTodoListEntity(TodoListEntity):
 
         new_due = _due_to_datetime(todo.due)
 
-        # rule for a child cant be due after its parent
+        # rule for a child cannot be due after its parent
         parent_uid = todo.related_to[0].uid if todo.related_to else None
         if parent_uid and parent_uid != todo.uid:
             parent = next((t for t in todos if t.uid == parent_uid), None)
@@ -195,7 +195,7 @@ class LocalTodoListEntity(TodoListEntity):
                     "A subtask cannot be due after its parent task"
                 )
 
-        # rule for a parent cant be due before any of its children
+        # rule for a parent cannot be due before any of its children
         for child in todos:
             if (
                 child.uid != todo.uid
@@ -242,6 +242,23 @@ class LocalTodoListEntity(TodoListEntity):
             current = by_uid.get(parent_uid)
         return result
 
+    def _update_related_todo_statuses(
+        self, item: TodoItem, uid: str, was_completed: bool
+    ) -> None:
+        """Propagate status changes to related todo items."""
+        if item.status == TodoItemStatus.COMPLETED and not was_completed:
+            descendants = set(self._descendant_uids(uid))
+            for todo in self._calendar.todos:
+                if todo.uid in descendants:
+                    todo.status = TodoStatus.COMPLETED
+                    todo.completed = dt_util.utcnow()
+        elif item.status == TodoItemStatus.NEEDS_ACTION and was_completed:
+            ancestors = set(self._ancestor_uids(uid))
+            for todo in self._calendar.todos:
+                if todo.uid in ancestors:
+                    todo.status = TodoStatus.NEEDS_ACTION
+                    todo.completed = None
+
     @override
     async def async_create_todo_item(self, item: TodoItem) -> None:
         """Add an item to the To-do list."""
@@ -274,19 +291,7 @@ class LocalTodoListEntity(TodoListEntity):
             self._calendar.todos[:] = [
                 edited if t.uid == todo.uid else t for t in original
             ]
-            # check if the parent has checked all of the subtasks
-            if item.status == TodoItemStatus.COMPLETED and not was_completed:
-                descendants = set(self._descendant_uids(todo.uid))
-                for t in self._calendar.todos:
-                    if t.uid in descendants:
-                        t.status = TodoStatus.COMPLETED
-                        t.completed = dt_util.utcnow()
-            if item.status == TodoItemStatus.NEEDS_ACTION and was_completed:
-                ancestors = set(self._ancestor_uids(todo.uid))
-                for t in self._calendar.todos:
-                    if t.uid in ancestors:
-                        t.status = TodoStatus.NEEDS_ACTION
-                        t.completed = None
+            self._update_related_todo_statuses(item, todo.uid, was_completed)
             await self.async_save()
         await self.async_update_ha_state(force_refresh=True)
 
