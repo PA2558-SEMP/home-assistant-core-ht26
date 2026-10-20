@@ -35,6 +35,7 @@ from .const import (
     ATTR_DUE_DATE,
     ATTR_DUE_DATETIME,
     ATTR_ITEM,
+    ATTR_PARENT as ATTR_PARENT,
     ATTR_RENAME,
     ATTR_STATUS,
     DATA_COMPONENT,
