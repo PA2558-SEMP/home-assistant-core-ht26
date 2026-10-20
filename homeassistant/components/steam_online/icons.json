@@ -9,6 +9,9 @@
       "account": {
         "default": "mdi:steam"
       },
+      "achievements": {
+        "default": "mdi:trophy-award"
+      },
       "badges": {
         "default": "mdi:medal"
       },

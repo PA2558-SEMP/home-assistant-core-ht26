@@ -55,6 +55,7 @@ class SteamSensor(StrEnum):
     XP = "xp"
     BADGES = "badges"
     NEWS = "news"
+    ACHIEVEMENTS = "achievements"
 
     # Friend Activity
     FRIENDS_ONLINE = "friends_online"
@@ -77,6 +78,13 @@ class SteamLibSensorEntityDescription(SensorEntityDescription):
     """Steam sensor description for the library sensors."""
 
     value_fn: Callable[[LibraryData], StateType]
+
+
+@dataclass(kw_only=True, frozen=True)
+class FriendActivitySensorEntityDescription(SensorEntityDescription):
+    """Description of a friend activity sensor."""
+
+    value_fn: Callable[[list[PlayerData]], int]
 
 
 LIB_SENSOR_DESCRIPTIONS: tuple[SteamLibSensorEntityDescription, ...] = (
@@ -112,6 +120,11 @@ LIB_SENSOR_DESCRIPTIONS: tuple[SteamLibSensorEntityDescription, ...] = (
 NEWS_DESCRIPTION = SensorEntityDescription(
     key=SteamSensor.NEWS,
     translation_key=SteamSensor.NEWS,
+)
+
+ACHIEVEMENT_SENSOR_DESCRIPTION = SensorEntityDescription(
+    key=SteamSensor.ACHIEVEMENTS,
+    translation_key=SteamSensor.ACHIEVEMENTS,
 )
 
 SENSOR_DESCRIPTIONS: tuple[SteamSensorEntityDescription, ...] = (
@@ -189,13 +202,6 @@ SENSOR_DESCRIPTIONS: tuple[SteamSensorEntityDescription, ...] = (
 )
 
 
-@dataclass(kw_only=True, frozen=True)
-class FriendActivitySensorEntityDescription(SensorEntityDescription):
-    """Description of a friend activity sensor."""
-
-    value_fn: Callable[[list[PlayerData]], int]
-
-
 FRIEND_ACTIVITY_DESCRIPTIONS = (
     FriendActivitySensorEntityDescription(
         key=SteamSensor.FRIENDS_ONLINE,
@@ -221,11 +227,15 @@ async def async_setup_entry(
     coordinator = entry.runtime_data
     if TYPE_CHECKING:
         assert entry.unique_id
+
+    # Main account sensors
     async_add_entities(
         SteamSensorEntity(coordinator, entry.unique_id, description)
         for description in SENSOR_DESCRIPTIONS
         if entry.unique_id in coordinator.data
     )
+
+    # News for the game the main account is playing
     if entry.unique_id in coordinator.data:
         async_add_entities(
             [
@@ -237,6 +247,8 @@ async def async_setup_entry(
                 )
             ]
         )
+
+    # Library sensors
     async_add_entities(
         SteamLibSensorEntity(
             entry.runtime_data.library_coordinator, entry.unique_id, description
@@ -244,6 +256,7 @@ async def async_setup_entry(
         for description in LIB_SENSOR_DESCRIPTIONS
     )
 
+    # Sensors for each configured friend
     for subentry in entry.get_subentries_of_type(SUBENTRY_TYPE_FRIEND):
         async_add_entities(
             [
@@ -253,6 +266,8 @@ async def async_setup_entry(
             ],
             config_subentry_id=subentry.subentry_id,
         )
+
+    # Aggregated activity across configured friends
     if entry.unique_id in coordinator.data:
         async_add_entities(
             SteamFriendActivitySensorEntity(coordinator, entry, description)
@@ -262,6 +277,7 @@ async def async_setup_entry(
     library_coordinator = coordinator.library_coordinator
     games = library_coordinator.data.achievement_games
 
+    # Achievement sensors for the main account's games
     if games is not None:
         active_unique_ids = {
             f"{entry.unique_id}_{game.app_id}_achievements" for game in games
@@ -339,12 +355,14 @@ class SteamAchievementSensorEntity(
         """Initialize sensor."""
         super().__init__(coordinator)
 
+        self.entity_description = ACHIEVEMENT_SENSOR_DESCRIPTION
         self._app_id = achievement_game.app_id
-        self._attr_name = f"{achievement_game.name} achievements"
+        self._attr_translation_placeholders = {"game": achievement_game.name}
         self._attr_unique_id = f"{steamid}_{self._app_id}_achievements"
-        self._attr_entity_picture = (
-            f"{STEAM_API_URL}{self._app_id}/{STEAM_MAIN_IMAGE_FILE}"
-        )
+        if achievement_game.icon_hash:
+            self._attr_entity_picture = (
+                f"{STEAM_ICON_URL}{self._app_id}/{achievement_game.icon_hash}.jpg"
+            )
         self._attr_device_info = dr.DeviceInfo(
             identifiers={(DOMAIN, steamid)},
         )
@@ -358,6 +376,10 @@ class SteamAchievementSensorEntity(
                 if game.unlocked_achievements is None:
                     return None
 
+                return f"{game.unlocked_achievements} / {game.total_achievements}"
+
+        return None
+
 
 class SteamNewsSensorEntity(SteamEntity, SensorEntity):
     """Latest news for the game the main account is playing."""
@@ -365,59 +387,55 @@ class SteamNewsSensorEntity(SteamEntity, SensorEntity):
     _unrecorded_attributes = frozenset({"preview"})
 
     def __init__(
-                    self,
-                    coordinator: SteamDataUpdateCoordinator,
-                    library_coordinator: SteamLibraryCoordinator,
-                    steamid: str,
-                    description: SensorEntityDescription,
+        self,
+        coordinator: SteamDataUpdateCoordinator,
+        library_coordinator: SteamLibraryCoordinator,
+        steamid: str,
+        description: SensorEntityDescription,
     ) -> None:
-                    """Initialize the news sensor."""
-                    super().__init__(coordinator, steamid, description)
-                    self.library_coordinator = library_coordinator
+        """Initialize the news sensor."""
+        super().__init__(coordinator, steamid, description)
+        self.library_coordinator = library_coordinator
 
     @override
     async def async_added_to_hass(self) -> None:
-                    """Also listen to the library coordinator."""
-                    await super().async_added_to_hass()
-                    self.async_on_remove(
-                        self.library_coordinator.async_add_listener(self._handle_coordinator_update)
-                    )
+        """Also listen to the library coordinator."""
+        await super().async_added_to_hass()
+        self.async_on_remove(
+            self.library_coordinator.async_add_listener(self._handle_coordinator_update)
+        )
 
     @property
     def _news(self) -> NewsItem | None:
-                    """Return the news item if it belongs to the game being played."""
-                    news = self.library_coordinator.data.news
-                    if news and news.appid == self.coordinator.data[self._steamid].gameid:
-                        return news
-                    return None
+        """Return the news item if it belongs to the game being played."""
+        news = self.library_coordinator.data.news
+        if news and news.appid == self.coordinator.data[self._steamid].gameid:
+            return news
+        return None
 
     @property
     @override
     def available(self) -> bool:
-                    """Return True if entity is available."""
-                    return super().available and self.library_coordinator.last_update_success
+        """Return True if entity is available."""
+        return super().available and self.library_coordinator.last_update_success
 
     @property
     @override
     def native_value(self) -> str | None:
-                    """Return the headline of the latest news."""
-                    return news.title[:MAX_LENGTH_STATE_STATE] if (news := self._news) else None
+        """Return the headline of the latest news."""
+        return news.title[:MAX_LENGTH_STATE_STATE] if (news := self._news) else None
 
     @property
     @override
     def extra_state_attributes(self) -> Mapping[str, Any] | None:
-                    """Return the news link, date and preview."""
-                    if (news := self._news) is None:
-                        return None
-                    return {
-                        "url": news.url,
-                        "date": dt_util.utc_from_timestamp(news.date),
-                        "preview": news.contents,
-                    }
-
-                return f"{game.unlocked_achievements} / {game.total_achievements}"
-
-        return None
+        """Return the news link, date and preview."""
+        if (news := self._news) is None:
+            return None
+        return {
+            "url": news.url,
+            "date": dt_util.utc_from_timestamp(news.date),
+            "preview": news.contents,
+        }
 
 
 class SteamFriendActivitySensorEntity(SteamEntity, SensorEntity):

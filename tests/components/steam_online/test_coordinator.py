@@ -2,6 +2,8 @@
 
 from unittest.mock import MagicMock
 
+import pytest
+
 from homeassistant.core import HomeAssistant
 
 from . import ACCOUNT_1
@@ -30,3 +32,21 @@ async def test_library_coordinator_setup(
     assert library_coordinator.data.total_playtime == 6798
     assert library_coordinator.data.xp == 1234
     assert library_coordinator.data.badges == 3
+
+
+@pytest.mark.usefixtures("steam_api")
+async def test_achievement_counts(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+) -> None:
+    """Test achievement counts with unlocked and progress-only records."""
+    config_entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    library_coordinator = config_entry.runtime_data.library_coordinator
+    achievement_games = library_coordinator.data.achievement_games
+    assert achievement_games is not None
+    assert [
+        (game.app_id, game.unlocked_achievements) for game in achievement_games
+    ] == [(20900, 2), (1180660, 2)]

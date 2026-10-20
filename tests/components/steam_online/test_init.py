@@ -175,12 +175,14 @@ async def test_achievement_games_data(
             name="The Witcher: Enhanced Edition",
             total_achievements=73,
             unlocked_achievements=2,
+            icon_hash="746d1cd48fb2e57d579b05b6e9eccba95859e549",
         ),
         AchievementGame(
             app_id=1180660,
             name="Tell Me Why",
             total_achievements=17,
             unlocked_achievements=2,
+            icon_hash="6eb40e6f71226ce5bea75601a1ec0f9d6f647dd1",
         ),
     ]
 

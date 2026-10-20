@@ -62,6 +62,7 @@ async def test_news_unknown(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
     steam_api: MagicMock,
+    entity_registry: er.EntityRegistry,
     in_game: bool,
     news: dict[str, Any],
 ) -> None:
@@ -79,7 +80,11 @@ async def test_news_unknown(
     await hass.async_block_till_done()
 
     assert config_entry.state is ConfigEntryState.LOADED
-    assert (state := hass.states.get("sensor.testaccount1_latest_news"))
+    news_entity_id = entity_registry.async_get_entity_id(
+        "sensor", DOMAIN, f"{config_entry.unique_id}_news"
+    )
+    assert news_entity_id is not None
+    assert (state := hass.states.get(news_entity_id))
     assert state.state == STATE_UNKNOWN
 
 
