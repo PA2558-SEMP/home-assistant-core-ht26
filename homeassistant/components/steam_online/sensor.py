@@ -13,11 +13,14 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.typing import StateType
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt as dt_util
 
 from .const import (
+    DOMAIN,
     STEAM_API_URL,
     STEAM_HEADER_IMAGE_FILE,
     STEAM_ICON_URL,
@@ -25,7 +28,12 @@ from .const import (
     STEAM_STATUSES,
     SUBENTRY_TYPE_FRIEND,
 )
-from .coordinator import PlayerData, SteamConfigEntry
+from .coordinator import (
+    AchievementGame,
+    PlayerData,
+    SteamConfigEntry,
+    SteamLibraryCoordinator,
+)
 from .entity import SteamEntity
 
 PARALLEL_UPDATES = 1
@@ -151,6 +159,22 @@ async def async_setup_entry(
             config_subentry_id=subentry.subentry_id,
         )
 
+    library_coordinator = coordinator.library_coordinator
+    games = library_coordinator.data.achievement_games
+
+    if games is not None:
+        achievement_sensors = []
+
+        for game in games:
+            sensor = SteamAchievementSensorEntity(
+                library_coordinator,
+                entry.unique_id,
+                game,
+            )
+            achievement_sensors.append(sensor)
+
+        async_add_entities(achievement_sensors)
+
 
 class SteamSensorEntity(SteamEntity, SensorEntity):
     """Representation of a Steam sensor entity."""
@@ -182,3 +206,43 @@ class SteamSensorEntity(SteamEntity, SensorEntity):
             if (fn := self.entity_description.extra_state_attributes_fn) is not None
             else super().extra_state_attributes
         )
+
+
+class SteamAchievementSensorEntity(
+    CoordinatorEntity[SteamLibraryCoordinator], SensorEntity
+):
+    """Representation of a steam achievement sensor."""
+
+    _attr_has_entity_name = True
+
+    def __init__(
+        self,
+        coordinator: SteamLibraryCoordinator,
+        steamid: str,
+        achievement_game: AchievementGame,
+    ) -> None:
+        """Initialize sensor."""
+        super().__init__(coordinator)
+
+        self._app_id = achievement_game.app_id
+        self._attr_name = f"{achievement_game.name} achievements"
+        self._attr_unique_id = f"{steamid}_{self._app_id}_achievements"
+        self._attr_entity_picture = (
+            f"{STEAM_API_URL}{self._app_id}/{STEAM_MAIN_IMAGE_FILE}"
+        )
+        self._attr_device_info = dr.DeviceInfo(
+            identifiers={(DOMAIN, steamid)},
+        )
+
+    @property
+    @override
+    def native_value(self) -> str | None:
+        """Return achievement progress."""
+        for game in self.coordinator.data.achievement_games or []:
+            if game.app_id == self._app_id:
+                if game.unlocked_achievements is None:
+                    return None
+
+                return f"{game.unlocked_achievements} / {game.total_achievements}"
+
+        return None

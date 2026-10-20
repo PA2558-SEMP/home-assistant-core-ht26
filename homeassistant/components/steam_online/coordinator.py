@@ -159,6 +159,7 @@ class AchievementGame:
     """Steam game achievement data."""
 
     app_id: int
+    name: str
     total_achievements: int
     unlocked_achievements: int | None
 
@@ -237,15 +238,23 @@ class SteamLibraryCoordinator(DataUpdateCoordinator[LibraryData]):
 
             if recently_played_games:
                 game_ids = [game.app_id for game in recently_played_games]
+                game_names = {game.app_id: game.name for game in recently_played_games}
+
+                parameters: dict[str, str | int] = {"steamid": steamid}
+
+                for index, app_id in enumerate(game_ids):
+                    parameters[f"appids[{index}]"] = app_id
 
                 achievement_re = self.player_interface.GetTopAchievementsForGames(
-                    steamid=steamid,
-                    appids=game_ids,
+                    **parameters
                 )["response"]
 
                 achievement_games = []
 
                 for game in achievement_re.get("games", []):
+                    if "total_achievements" not in game:
+                        continue
+
                     user_achievement_re = self.player_interface.GetUserAchievements(
                         steamid=steamid,
                         appid=game["appid"],
@@ -257,6 +266,7 @@ class SteamLibraryCoordinator(DataUpdateCoordinator[LibraryData]):
                         achievement_games.append(
                             AchievementGame(
                                 app_id=game["appid"],
+                                name=game_names[game["appid"]],
                                 total_achievements=game["total_achievements"],
                                 unlocked_achievements=None,
                             )
@@ -281,6 +291,7 @@ class SteamLibraryCoordinator(DataUpdateCoordinator[LibraryData]):
                     achievement_games.append(
                         AchievementGame(
                             app_id=game["appid"],
+                            name=game_names[game["appid"]],
                             total_achievements=game["total_achievements"],
                             unlocked_achievements=unlocked_achievements,
                         )
