@@ -10,6 +10,7 @@ from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .random_station import async_get_random_station
+from .websocket_api import async_setup as async_setup_websocket_api
 
 __all__ = ["async_get_random_station"]
 
@@ -33,6 +34,7 @@ async def async_setup_entry(
         raise ConfigEntryNotReady("Could not connect to Radio Browser API") from err
 
     entry.runtime_data = radios
+    async_setup_websocket_api(hass)
     return True
 
 
