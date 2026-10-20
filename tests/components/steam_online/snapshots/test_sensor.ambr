@@ -79,6 +79,320 @@
     'state': 'online',
   })
 # ---
+# name: test_sensors[sensor.testaccount1_achievements_tell_me_why-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': list([
+      None,
+    ]),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': None,
+    'entity_id': 'sensor.testaccount1_achievements_tell_me_why',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Achievements: Tell Me Why',
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': None,
+    'original_name': 'Achievements: Tell Me Why',
+    'platform': 'steam_online',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': <SteamSensor.ACHIEVEMENTS: 'achievements'>,
+    'unique_id': '12345678901234567_1180660_achievements',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_sensors[sensor.testaccount1_achievements_tell_me_why-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      <EntityStateAttribute.ENTITY_PICTURE: 'entity_picture'>: 'https://steamcdn-a.akamaihd.net/steamcommunity/public/images/apps/1180660/6eb40e6f71226ce5bea75601a1ec0f9d6f647dd1.jpg',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'testaccount1 Achievements: Tell Me Why',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.testaccount1_achievements_tell_me_why',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': '2 / 17',
+  })
+# ---
+# name: test_sensors[sensor.testaccount1_achievements_the_witcher_enhanced_edition-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': list([
+      None,
+    ]),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': None,
+    'entity_id': 'sensor.testaccount1_achievements_the_witcher_enhanced_edition',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Achievements: The Witcher: Enhanced Edition',
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': None,
+    'original_name': 'Achievements: The Witcher: Enhanced Edition',
+    'platform': 'steam_online',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': <SteamSensor.ACHIEVEMENTS: 'achievements'>,
+    'unique_id': '12345678901234567_20900_achievements',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_sensors[sensor.testaccount1_achievements_the_witcher_enhanced_edition-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      <EntityStateAttribute.ENTITY_PICTURE: 'entity_picture'>: 'https://steamcdn-a.akamaihd.net/steamcommunity/public/images/apps/20900/746d1cd48fb2e57d579b05b6e9eccba95859e549.jpg',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'testaccount1 Achievements: The Witcher: Enhanced Edition',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.testaccount1_achievements_the_witcher_enhanced_edition',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': '2 / 73',
+  })
+# ---
+# name: test_sensors[sensor.testaccount1_badges-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': list([
+      None,
+    ]),
+    'area_id': None,
+    'capabilities': dict({
+      <SensorEntityCapabilityAttribute.STATE_CLASS: 'state_class'>: <SensorStateClass.MEASUREMENT: 'measurement'>,
+    }),
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': None,
+    'entity_id': 'sensor.testaccount1_badges',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Badges',
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': None,
+    'original_name': 'Badges',
+    'platform': 'steam_online',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': <SteamSensor.BADGES: 'badges'>,
+    'unique_id': '12345678901234567_badges',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_sensors[sensor.testaccount1_badges-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'testaccount1 Badges',
+      <SensorEntityCapabilityAttribute.STATE_CLASS: 'state_class'>: <SensorStateClass.MEASUREMENT: 'measurement'>,
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.testaccount1_badges',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': '3',
+  })
+# ---
+# name: test_sensors[sensor.testaccount1_friends_online-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': list([
+      None,
+    ]),
+    'area_id': None,
+    'capabilities': dict({
+      <SensorEntityCapabilityAttribute.STATE_CLASS: 'state_class'>: <SensorStateClass.MEASUREMENT: 'measurement'>,
+    }),
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': None,
+    'entity_id': 'sensor.testaccount1_friends_online',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Friends online',
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': None,
+    'original_name': 'Friends online',
+    'platform': 'steam_online',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': <SteamSensor.FRIENDS_ONLINE: 'friends_online'>,
+    'unique_id': '12345678901234567_friends_online',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_sensors[sensor.testaccount1_friends_online-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'testaccount1 Friends online',
+      <SensorEntityCapabilityAttribute.STATE_CLASS: 'state_class'>: <SensorStateClass.MEASUREMENT: 'measurement'>,
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.testaccount1_friends_online',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': '1',
+  })
+# ---
+# name: test_sensors[sensor.testaccount1_friends_playing-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': list([
+      None,
+    ]),
+    'area_id': None,
+    'capabilities': dict({
+      <SensorEntityCapabilityAttribute.STATE_CLASS: 'state_class'>: <SensorStateClass.MEASUREMENT: 'measurement'>,
+    }),
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': None,
+    'entity_id': 'sensor.testaccount1_friends_playing',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Friends playing',
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': None,
+    'original_name': 'Friends playing',
+    'platform': 'steam_online',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': <SteamSensor.FRIENDS_PLAYING: 'friends_playing'>,
+    'unique_id': '12345678901234567_friends_playing',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_sensors[sensor.testaccount1_friends_playing-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'testaccount1 Friends playing',
+      <SensorEntityCapabilityAttribute.STATE_CLASS: 'state_class'>: <SensorStateClass.MEASUREMENT: 'measurement'>,
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.testaccount1_friends_playing',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': '0',
+  })
+# ---
+# name: test_sensors[sensor.testaccount1_games_owned-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': list([
+      None,
+    ]),
+    'area_id': None,
+    'capabilities': dict({
+      <SensorEntityCapabilityAttribute.STATE_CLASS: 'state_class'>: <SensorStateClass.MEASUREMENT: 'measurement'>,
+    }),
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': None,
+    'entity_id': 'sensor.testaccount1_games_owned',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Games owned',
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': None,
+    'original_name': 'Games owned',
+    'platform': 'steam_online',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': <SteamSensor.GAMES_OWNED: 'games_owned'>,
+    'unique_id': '12345678901234567_games_owned',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_sensors[sensor.testaccount1_games_owned-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'testaccount1 Games owned',
+      <SensorEntityCapabilityAttribute.STATE_CLASS: 'state_class'>: <SensorStateClass.MEASUREMENT: 'measurement'>,
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.testaccount1_games_owned',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': '1',
+  })
+# ---
 # name: test_sensors[sensor.testaccount1_last_online-entry]
   EntityRegistryEntrySnapshot({
     'aliases': list([
@@ -288,13 +602,15 @@
     'state': 'The Witcher: Enhanced Edition',
   })
 # ---
-# name: test_sensors[sensor.testaccount1_tell_me_why_achievements-entry]
+# name: test_sensors[sensor.testaccount1_total_playtime-entry]
   EntityRegistryEntrySnapshot({
     'aliases': list([
       None,
     ]),
     'area_id': None,
-    'capabilities': None,
+    'capabilities': dict({
+      <SensorEntityCapabilityAttribute.STATE_CLASS: 'state_class'>: <SensorStateClass.TOTAL: 'total'>,
+    }),
     'config_entry_id': <ANY>,
     'config_subentry_id': <ANY>,
     'device_class': None,
@@ -302,7 +618,7 @@
     'disabled_by': None,
     'domain': 'sensor',
     'entity_category': None,
-    'entity_id': 'sensor.testaccount1_tell_me_why_achievements',
+    'entity_id': 'sensor.testaccount1_total_playtime',
     'has_entity_name': True,
     'hidden_by': None,
     'icon': None,
@@ -310,42 +626,52 @@
     'labels': set({
     }),
     'name': None,
-    'object_id_base': 'Tell Me Why achievements',
+    'object_id_base': 'Total playtime',
     'options': dict({
+      'sensor': dict({
+        'suggested_display_precision': 2,
+      }),
+      'sensor.private': dict({
+        'suggested_unit_of_measurement': <UnitOfTime.HOURS: 'h'>,
+      }),
     }),
-    'original_device_class': None,
+    'original_device_class': <SensorDeviceClass.DURATION: 'duration'>,
     'original_icon': None,
-    'original_name': 'Tell Me Why achievements',
+    'original_name': 'Total playtime',
     'platform': 'steam_online',
     'previous_unique_id': None,
     'suggested_object_id': None,
     'supported_features': 0,
-    'translation_key': None,
-    'unique_id': '12345678901234567_1180660_achievements',
-    'unit_of_measurement': None,
+    'translation_key': <SteamSensor.TOTAL_PLAYTIME: 'total_playtime'>,
+    'unique_id': '12345678901234567_total_playtime',
+    'unit_of_measurement': <UnitOfTime.HOURS: 'h'>,
   })
 # ---
-# name: test_sensors[sensor.testaccount1_tell_me_why_achievements-state]
+# name: test_sensors[sensor.testaccount1_total_playtime-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      <EntityStateAttribute.ENTITY_PICTURE: 'entity_picture'>: 'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/1180660/capsule_616x353.jpg',
-      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'testaccount1 Tell Me Why achievements',
+      <EntityStateAttribute.DEVICE_CLASS: 'device_class'>: 'duration',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'testaccount1 Total playtime',
+      <SensorEntityCapabilityAttribute.STATE_CLASS: 'state_class'>: <SensorStateClass.TOTAL: 'total'>,
+      <EntityStateAttribute.UNIT_OF_MEASUREMENT: 'unit_of_measurement'>: <UnitOfTime.HOURS: 'h'>,
     }),
     'context': <ANY>,
-    'entity_id': 'sensor.testaccount1_tell_me_why_achievements',
+    'entity_id': 'sensor.testaccount1_total_playtime',
     'last_changed': <ANY>,
     'last_reported': <ANY>,
     'last_updated': <ANY>,
-    'state': '2 / 17',
+    'state': '113.3',
   })
 # ---
-# name: test_sensors[sensor.testaccount1_the_witcher_enhanced_edition_achievements-entry]
+# name: test_sensors[sensor.testaccount1_xp-entry]
   EntityRegistryEntrySnapshot({
     'aliases': list([
       None,
     ]),
     'area_id': None,
-    'capabilities': None,
+    'capabilities': dict({
+      <SensorEntityCapabilityAttribute.STATE_CLASS: 'state_class'>: <SensorStateClass.MEASUREMENT: 'measurement'>,
+    }),
     'config_entry_id': <ANY>,
     'config_subentry_id': <ANY>,
     'device_class': None,
@@ -353,7 +679,7 @@
     'disabled_by': None,
     'domain': 'sensor',
     'entity_category': None,
-    'entity_id': 'sensor.testaccount1_the_witcher_enhanced_edition_achievements',
+    'entity_id': 'sensor.testaccount1_xp',
     'has_entity_name': True,
     'hidden_by': None,
     'icon': None,
@@ -361,33 +687,33 @@
     'labels': set({
     }),
     'name': None,
-    'object_id_base': 'The Witcher: Enhanced Edition achievements',
+    'object_id_base': 'XP',
     'options': dict({
     }),
     'original_device_class': None,
     'original_icon': None,
-    'original_name': 'The Witcher: Enhanced Edition achievements',
+    'original_name': 'XP',
     'platform': 'steam_online',
     'previous_unique_id': None,
     'suggested_object_id': None,
     'supported_features': 0,
-    'translation_key': None,
-    'unique_id': '12345678901234567_20900_achievements',
+    'translation_key': <SteamSensor.XP: 'xp'>,
+    'unique_id': '12345678901234567_xp',
     'unit_of_measurement': None,
   })
 # ---
-# name: test_sensors[sensor.testaccount1_the_witcher_enhanced_edition_achievements-state]
+# name: test_sensors[sensor.testaccount1_xp-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      <EntityStateAttribute.ENTITY_PICTURE: 'entity_picture'>: 'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/20900/capsule_616x353.jpg',
-      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'testaccount1 The Witcher: Enhanced Edition achievements',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'testaccount1 XP',
+      <SensorEntityCapabilityAttribute.STATE_CLASS: 'state_class'>: <SensorStateClass.MEASUREMENT: 'measurement'>,
     }),
     'context': <ANY>,
-    'entity_id': 'sensor.testaccount1_the_witcher_enhanced_edition_achievements',
+    'entity_id': 'sensor.testaccount1_xp',
     'last_changed': <ANY>,
     'last_reported': <ANY>,
     'last_updated': <ANY>,
-    'state': '2 / 73',
+    'state': '1234',
   })
 # ---
 # name: test_sensors[sensor.testaccount2-entry]

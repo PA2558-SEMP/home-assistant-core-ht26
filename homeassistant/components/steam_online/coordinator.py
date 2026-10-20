@@ -174,6 +174,7 @@ class AchievementGame:
     name: str
     total_achievements: int
     unlocked_achievements: int | None
+    icon_hash: str | None
 
 
 @dataclass(kw_only=True, frozen=True)
@@ -286,6 +287,9 @@ class SteamLibraryCoordinator(DataUpdateCoordinator[LibraryData]):
 
         if library_games is not None:
             achievement_games = []
+            game_icon_hashes = {
+                game["appid"]: game.get("img_icon_url") for game in games
+            }
 
             recently_played_games = [
                 game for game in library_games if game.last_played is not None
@@ -328,21 +332,22 @@ class SteamLibraryCoordinator(DataUpdateCoordinator[LibraryData]):
                                 name=game_names[game["appid"]],
                                 total_achievements=game["total_achievements"],
                                 unlocked_achievements=None,
+                                icon_hash=game_icon_hashes[game["appid"]],
                             )
                         )
                         continue
+
                     unlocked_count = 0
-                    has_unlocked = True
+                    any_unlocked = False
 
                     for achievement in user_achievement:
                         if "unlocked" not in achievement:
-                            has_unlocked = False
-                            break
-
+                            continue
                         if achievement["unlocked"]:
+                            any_unlocked = True
                             unlocked_count += 1
 
-                    if has_unlocked:
+                    if any_unlocked:
                         unlocked_achievements = unlocked_count
                     else:
                         unlocked_achievements = None
@@ -353,6 +358,7 @@ class SteamLibraryCoordinator(DataUpdateCoordinator[LibraryData]):
                             name=game_names[game["appid"]],
                             total_achievements=game["total_achievements"],
                             unlocked_achievements=unlocked_achievements,
+                            icon_hash=game_icon_hashes[game["appid"]],
                         )
                     )
 

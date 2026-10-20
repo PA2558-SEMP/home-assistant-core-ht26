@@ -138,6 +138,9 @@
           "real_name": { "name": "Real name" }
         }
       },
+      "achievements": {
+        "name": "Achievements: {game}"
+      },
       "badges": {
         "name": "Badges"
       },

@@ -50,15 +50,16 @@ class SteamSensor(StrEnum):
     LAST_ONLINE = "last_online"
     NOW_PLAYING = "now_playing"
     LEVEL = "level"
-    NEWS = "news"
-
-    # Friend Activity
-    FRIENDS_ONLINE = "friends_online"
-    FRIENDS_PLAYING = "friends_playing"
     GAMES_OWNED = "games_owned"
     TOTAL_PLAYTIME = "total_playtime"
     XP = "xp"
     BADGES = "badges"
+    NEWS = "news"
+    ACHIEVEMENTS = "achievements"
+
+    # Friend Activity
+    FRIENDS_ONLINE = "friends_online"
+    FRIENDS_PLAYING = "friends_playing"
 
 
 @dataclass(kw_only=True, frozen=True)
@@ -77,6 +78,13 @@ class SteamLibSensorEntityDescription(SensorEntityDescription):
     """Steam sensor description for the library sensors."""
 
     value_fn: Callable[[LibraryData], StateType]
+
+
+@dataclass(kw_only=True, frozen=True)
+class FriendActivitySensorEntityDescription(SensorEntityDescription):
+    """Description of a friend activity sensor."""
+
+    value_fn: Callable[[list[PlayerData]], int]
 
 
 LIB_SENSOR_DESCRIPTIONS: tuple[SteamLibSensorEntityDescription, ...] = (
@@ -107,6 +115,16 @@ LIB_SENSOR_DESCRIPTIONS: tuple[SteamLibSensorEntityDescription, ...] = (
         value_fn=lambda x: x.badges,
         state_class=SensorStateClass.MEASUREMENT,
     ),
+)
+
+NEWS_DESCRIPTION = SensorEntityDescription(
+    key=SteamSensor.NEWS,
+    translation_key=SteamSensor.NEWS,
+)
+
+ACHIEVEMENT_SENSOR_DESCRIPTION = SensorEntityDescription(
+    key=SteamSensor.ACHIEVEMENTS,
+    translation_key=SteamSensor.ACHIEVEMENTS,
 )
 
 SENSOR_DESCRIPTIONS: tuple[SteamSensorEntityDescription, ...] = (
@@ -183,34 +201,18 @@ SENSOR_DESCRIPTIONS: tuple[SteamSensorEntityDescription, ...] = (
     ),
 )
 
-NEWS_DESCRIPTION = SensorEntityDescription(
-    key=SteamSensor.NEWS,
-    translation_key=SteamSensor.NEWS,
-)
-
-
-@dataclass(kw_only=True, frozen=True)
-class FriendActivitySensorEntityDescription(SensorEntityDescription):
-    """Description of a friend activity sensor."""
-
-    value_fn: Callable[[list[PlayerData]], int]
-
 
 FRIEND_ACTIVITY_DESCRIPTIONS = (
     FriendActivitySensorEntityDescription(
         key=SteamSensor.FRIENDS_ONLINE,
         translation_key=SteamSensor.FRIENDS_ONLINE,
-        value_fn=lambda friends: sum(
-            friend.personastate != 0 for friend in friends
-        ),
+        value_fn=lambda friends: sum(friend.personastate != 0 for friend in friends),
         state_class=SensorStateClass.MEASUREMENT,
     ),
     FriendActivitySensorEntityDescription(
         key=SteamSensor.FRIENDS_PLAYING,
         translation_key=SteamSensor.FRIENDS_PLAYING,
-        value_fn=lambda friends: sum(
-            bool(friend.gameid) for friend in friends
-        ),
+        value_fn=lambda friends: sum(bool(friend.gameid) for friend in friends),
         state_class=SensorStateClass.MEASUREMENT,
     ),
 )
@@ -225,21 +227,28 @@ async def async_setup_entry(
     coordinator = entry.runtime_data
     if TYPE_CHECKING:
         assert entry.unique_id
+
+    # Main account sensors
+    async_add_entities(
+        SteamSensorEntity(coordinator, entry.unique_id, description)
+        for description in SENSOR_DESCRIPTIONS
+        if entry.unique_id in coordinator.data
+    )
+
+    # News for the game the main account is playing
     if entry.unique_id in coordinator.data:
         async_add_entities(
             [
-                *(
-                    SteamSensorEntity(coordinator, entry.unique_id, description)
-                    for description in SENSOR_DESCRIPTIONS
-                ),
                 SteamNewsSensorEntity(
                     coordinator,
                     coordinator.library_coordinator,
                     entry.unique_id,
                     NEWS_DESCRIPTION,
-                ),
+                )
             ]
         )
+
+    # Library sensors
     async_add_entities(
         SteamLibSensorEntity(
             entry.runtime_data.library_coordinator, entry.unique_id, description
@@ -247,6 +256,7 @@ async def async_setup_entry(
         for description in LIB_SENSOR_DESCRIPTIONS
     )
 
+    # Sensors for each configured friend
     for subentry in entry.get_subentries_of_type(SUBENTRY_TYPE_FRIEND):
         async_add_entities(
             [
@@ -256,17 +266,18 @@ async def async_setup_entry(
             ],
             config_subentry_id=subentry.subentry_id,
         )
-        if entry.unique_id in coordinator.data:
-            async_add_entities(
-                SteamFriendActivitySensorEntity(
-                    coordinator, entry, description
-                )
-                for description in FRIEND_ACTIVITY_DESCRIPTIONS
-            )
+
+    # Aggregated activity across configured friends
+    if entry.unique_id in coordinator.data:
+        async_add_entities(
+            SteamFriendActivitySensorEntity(coordinator, entry, description)
+            for description in FRIEND_ACTIVITY_DESCRIPTIONS
+        )
 
     library_coordinator = coordinator.library_coordinator
     games = library_coordinator.data.achievement_games
 
+    # Achievement sensors for the main account's games
     if games is not None:
         active_unique_ids = {
             f"{entry.unique_id}_{game.app_id}_achievements" for game in games
@@ -327,6 +338,49 @@ class SteamSensorEntity(SteamEntity, SensorEntity):
             else super().extra_state_attributes
         )
 
+
+class SteamAchievementSensorEntity(
+    CoordinatorEntity[SteamLibraryCoordinator], SensorEntity
+):
+    """Representation of a steam achievement sensor."""
+
+    _attr_has_entity_name = True
+
+    def __init__(
+        self,
+        coordinator: SteamLibraryCoordinator,
+        steamid: str,
+        achievement_game: AchievementGame,
+    ) -> None:
+        """Initialize sensor."""
+        super().__init__(coordinator)
+
+        self.entity_description = ACHIEVEMENT_SENSOR_DESCRIPTION
+        self._app_id = achievement_game.app_id
+        self._attr_translation_placeholders = {"game": achievement_game.name}
+        self._attr_unique_id = f"{steamid}_{self._app_id}_achievements"
+        if achievement_game.icon_hash:
+            self._attr_entity_picture = (
+                f"{STEAM_ICON_URL}{self._app_id}/{achievement_game.icon_hash}.jpg"
+            )
+        self._attr_device_info = dr.DeviceInfo(
+            identifiers={(DOMAIN, steamid)},
+        )
+
+    @property
+    @override
+    def native_value(self) -> str | None:
+        """Return achievement progress."""
+        for game in self.coordinator.data.achievement_games or []:
+            if game.app_id == self._app_id:
+                if game.unlocked_achievements is None:
+                    return None
+
+                return f"{game.unlocked_achievements} / {game.total_achievements}"
+
+        return None
+
+
 class SteamNewsSensorEntity(SteamEntity, SensorEntity):
     """Latest news for the game the main account is playing."""
 
@@ -384,46 +438,6 @@ class SteamNewsSensorEntity(SteamEntity, SensorEntity):
         }
 
 
-class SteamAchievementSensorEntity(
-    CoordinatorEntity[SteamLibraryCoordinator], SensorEntity
-):
-    """Representation of a steam achievement sensor."""
-
-    _attr_has_entity_name = True
-
-    def __init__(
-        self,
-        coordinator: SteamLibraryCoordinator,
-        steamid: str,
-        achievement_game: AchievementGame,
-    ) -> None:
-        """Initialize sensor."""
-        super().__init__(coordinator)
-
-        self._app_id = achievement_game.app_id
-        self._attr_name = f"{achievement_game.name} achievements"
-        self._attr_unique_id = f"{steamid}_{self._app_id}_achievements"
-        self._attr_entity_picture = (
-            f"{STEAM_API_URL}{self._app_id}/{STEAM_MAIN_IMAGE_FILE}"
-        )
-        self._attr_device_info = dr.DeviceInfo(
-            identifiers={(DOMAIN, steamid)},
-        )
-
-    @property
-    @override
-    def native_value(self) -> str | None:
-        """Return achievement progress."""
-        for game in self.coordinator.data.achievement_games or []:
-            if game.app_id == self._app_id:
-                if game.unlocked_achievements is None:
-                    return None
-
-                return f"{game.unlocked_achievements} / {game.total_achievements}"
-
-        return None
-
-
 class SteamFriendActivitySensorEntity(SteamEntity, SensorEntity):
     """Sensor representing aggregated Steam friend activity."""
 
@@ -431,11 +445,13 @@ class SteamFriendActivitySensorEntity(SteamEntity, SensorEntity):
 
     def __init__(
         self,
-        coordinator,
+        coordinator: SteamDataUpdateCoordinator,
         entry: SteamConfigEntry,
         description: FriendActivitySensorEntityDescription,
     ) -> None:
         """Initialize the friend activity sensor."""
+        if TYPE_CHECKING:
+            assert entry.unique_id
         super().__init__(coordinator, entry.unique_id, description)
         self._entry = entry
 
@@ -445,9 +461,7 @@ class SteamFriendActivitySensorEntity(SteamEntity, SensorEntity):
         """Calculate activity among configured Steam friends."""
         friend_ids = (
             subentry.unique_id
-            for subentry in self._entry.get_subentries_of_type(
-                SUBENTRY_TYPE_FRIEND
-            )
+            for subentry in self._entry.get_subentries_of_type(SUBENTRY_TYPE_FRIEND)
             if subentry.unique_id
         )
 
