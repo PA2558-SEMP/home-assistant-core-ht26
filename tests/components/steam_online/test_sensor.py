@@ -14,7 +14,11 @@ from homeassistant.const import STATE_UNKNOWN, Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 
-from tests.common import MockConfigEntry, load_json_object_fixture, snapshot_platform
+from tests.common import (
+    MockConfigEntry,
+    async_load_json_object_fixture,
+    snapshot_platform,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -63,7 +67,9 @@ async def test_news_unknown(
 ) -> None:
     """Test the news sensor is unknown when there is no news to show."""
     if not in_game:
-        players = load_json_object_fixture("GetPlayerSummaries.json", DOMAIN)
+        players = await async_load_json_object_fixture(
+            hass, "GetPlayerSummaries.json", DOMAIN
+        )
         del players["response"]["players"]["player"][0]["gameid"]
         steam_api.return_value.GetPlayerSummaries.return_value = players
     steam_api.return_value.GetNewsForApp.configure_mock(**news)
