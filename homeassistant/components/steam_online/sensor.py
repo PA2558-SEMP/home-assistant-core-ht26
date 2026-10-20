@@ -14,7 +14,7 @@ from homeassistant.components.sensor import (
 )
 from homeassistant.const import MAX_LENGTH_STATE_STATE
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.typing import StateType
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -182,6 +182,21 @@ async def async_setup_entry(
     games = library_coordinator.data.achievement_games
 
     if games is not None:
+        active_unique_ids = {
+            f"{entry.unique_id}_{game.app_id}_achievements" for game in games
+        }
+        registry = er.async_get(hass)
+
+        for entity in er.async_entries_for_config_entry(registry, entry.entry_id):
+            if (
+                entity.domain == "sensor"
+                and entity.platform == DOMAIN
+                and entity.unique_id.startswith(f"{entry.unique_id}_")
+                and entity.unique_id.endswith("_achievements")
+                and entity.unique_id not in active_unique_ids
+            ):
+                registry.async_remove(entity.entity_id)
+
         achievement_sensors = []
 
         for game in games:
