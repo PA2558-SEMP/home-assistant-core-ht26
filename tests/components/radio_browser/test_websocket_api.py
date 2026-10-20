@@ -12,6 +12,27 @@ from tests.common import MockConfigEntry
 from tests.typing import WebSocketGenerator
 
 
+@pytest.fixture
+def favorite_stations() -> list[dict[str, str]]:
+    """Return two stations for favorites tests."""
+    return [
+        {
+            "uuid": "test-station-1",
+            "name": "Test station 1",
+            "url_resolved": "https://example.com/station1.mp3",
+            "favicon": "",
+            "codec": "MP3",
+        },
+        {
+            "uuid": "test-station-2",
+            "name": "Test station 2",
+            "url_resolved": "https://example.com/station2.mp3",
+            "favicon": "",
+            "codec": "MP3",
+        },
+    ]
+
+
 async def test_add_favorite(
     hass: HomeAssistant,
     init_integration: MockConfigEntry,
@@ -59,28 +80,12 @@ async def test_remove_favorite(
     hass: HomeAssistant,
     init_integration: MockConfigEntry,
     hass_ws_client: WebSocketGenerator,
+    favorite_stations: list[dict[str, str]],
 ) -> None:
     """Test remove favorite through WebSocket API."""
-    stations = [
-        {
-            "uuid": "test-station-1",
-            "name": "Test station 1",
-            "url_resolved": "https://example.com/station1.mp3",
-            "favicon": "",
-            "codec": "MP3",
-        },
-        {
-            "uuid": "test-station-2",
-            "name": "Test station 2",
-            "url_resolved": "https://example.com/station2.mp3",
-            "favicon": "",
-            "codec": "MP3",
-        },
-    ]
-
     manager = init_integration.runtime_data.favorites
 
-    for station in stations:
+    for station in favorite_stations:
         await manager.async_add_favorite(station)
 
     client = await hass_ws_client(hass)
@@ -100,33 +105,17 @@ async def test_remove_favorite(
 
     favorites = await manager.async_load_favorites()
 
-    assert favorites == [stations[1]]
+    assert favorites == [favorite_stations[1]]
 
 
 async def test_list_favorites(
     hass: HomeAssistant,
     init_integration: MockConfigEntry,
     hass_ws_client: WebSocketGenerator,
+    favorite_stations: list[dict[str, str]],
 ) -> None:
     """Test list favorites through the WebSocket API."""
-    stations = [
-        {
-            "uuid": "test-station-1",
-            "name": "Test station 1",
-            "url_resolved": "https://example.com/station1.mp3",
-            "favicon": "",
-            "codec": "MP3",
-        },
-        {
-            "uuid": "test-station-2",
-            "name": "Test station 2",
-            "url_resolved": "https://example.com/station2.mp3",
-            "favicon": "",
-            "codec": "MP3",
-        },
-    ]
-
-    for station in stations:
+    for station in favorite_stations:
         await init_integration.runtime_data.favorites.async_add_favorite(station)
 
     client = await hass_ws_client(hass)
@@ -143,7 +132,7 @@ async def test_list_favorites(
         "id": 1,
         "type": "result",
         "success": True,
-        "result": {"favorites": stations},
+        "result": {"favorites": favorite_stations},
     }
 
 
