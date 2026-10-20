@@ -57,6 +57,7 @@ class SteamDataUpdateCoordinator(DataUpdateCoordinator[dict[str, PlayerData]]):
     config_entry: SteamConfigEntry
     user_interface: steam.api.interface
     player_interface: steam.api.interface
+    library_coordinator: SteamLibraryCoordinator
 
     def __init__(self, hass: HomeAssistant, config_entry: SteamConfigEntry) -> None:
         """Initialize the coordinator."""
