@@ -172,11 +172,13 @@ async def test_achievement_games_data(
     assert achievements_games == [
         AchievementGame(
             app_id=20900,
+            name="The Witcher: Enhanced Edition",
             total_achievements=73,
             unlocked_achievements=2,
         ),
         AchievementGame(
             app_id=1180660,
+            name="Tell Me Why",
             total_achievements=17,
             unlocked_achievements=2,
         ),
@@ -184,7 +186,7 @@ async def test_achievement_games_data(
 
     steam_api.return_value.GetTopAchievementsForGames.assert_any_call(
         steamid=ACCOUNT_1,
-        appids=[20900, 1180660],
+        **{"appids[0]": 20900, "appids[1]": 1180660},
     )
 
     steam_api.return_value.GetUserAchievements.assert_any_call(
