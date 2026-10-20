@@ -20,7 +20,7 @@ PLATFORMS = [Platform.IMAGE, Platform.SENSOR]
 async def async_setup_entry(hass: HomeAssistant, entry: SteamConfigEntry) -> bool:
     """Set up Steam from a config entry."""
     coordinator = SteamDataUpdateCoordinator(hass, entry)
-    library_coordinator = SteamLibraryCoordinator(hass, entry)
+    library_coordinator = SteamLibraryCoordinator(hass, entry, coordinator)
 
     await coordinator.async_config_entry_first_refresh()
     await library_coordinator.async_config_entry_first_refresh()

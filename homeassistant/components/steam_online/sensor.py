@@ -12,7 +12,7 @@ from homeassistant.components.sensor import (
     SensorEntityDescription,
     SensorStateClass,
 )
-from homeassistant.const import UnitOfTime
+from homeassistant.const import MAX_LENGTH_STATE_STATE, UnitOfTime
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
@@ -32,6 +32,7 @@ from .const import (
 from .coordinator import (
     AchievementGame,
     LibraryData,
+    NewsItem,
     PlayerData,
     SteamConfigEntry,
     SteamDataUpdateCoordinator,
@@ -53,6 +54,7 @@ class SteamSensor(StrEnum):
     TOTAL_PLAYTIME = "total_playtime"
     XP = "xp"
     BADGES = "badges"
+    NEWS = "news"
 
     # Friend Activity
     FRIENDS_ONLINE = "friends_online"
@@ -105,6 +107,11 @@ LIB_SENSOR_DESCRIPTIONS: tuple[SteamLibSensorEntityDescription, ...] = (
         value_fn=lambda x: x.badges,
         state_class=SensorStateClass.MEASUREMENT,
     ),
+)
+
+NEWS_DESCRIPTION = SensorEntityDescription(
+    key=SteamSensor.NEWS,
+    translation_key=SteamSensor.NEWS,
 )
 
 SENSOR_DESCRIPTIONS: tuple[SteamSensorEntityDescription, ...] = (
@@ -219,6 +226,17 @@ async def async_setup_entry(
         for description in SENSOR_DESCRIPTIONS
         if entry.unique_id in coordinator.data
     )
+    if entry.unique_id in coordinator.data:
+        async_add_entities(
+            [
+                SteamNewsSensorEntity(
+                    coordinator,
+                    coordinator.library_coordinator,
+                    entry.unique_id,
+                    NEWS_DESCRIPTION,
+                )
+            ]
+        )
     async_add_entities(
         SteamLibSensorEntity(
             entry.runtime_data.library_coordinator, entry.unique_id, description
@@ -339,6 +357,63 @@ class SteamAchievementSensorEntity(
             if game.app_id == self._app_id:
                 if game.unlocked_achievements is None:
                     return None
+
+
+class SteamNewsSensorEntity(SteamEntity, SensorEntity):
+    """Latest news for the game the main account is playing."""
+
+    _unrecorded_attributes = frozenset({"preview"})
+
+    def __init__(
+                    self,
+                    coordinator: SteamDataUpdateCoordinator,
+                    library_coordinator: SteamLibraryCoordinator,
+                    steamid: str,
+                    description: SensorEntityDescription,
+    ) -> None:
+                    """Initialize the news sensor."""
+                    super().__init__(coordinator, steamid, description)
+                    self.library_coordinator = library_coordinator
+
+    @override
+    async def async_added_to_hass(self) -> None:
+                    """Also listen to the library coordinator."""
+                    await super().async_added_to_hass()
+                    self.async_on_remove(
+                        self.library_coordinator.async_add_listener(self._handle_coordinator_update)
+                    )
+
+    @property
+    def _news(self) -> NewsItem | None:
+                    """Return the news item if it belongs to the game being played."""
+                    news = self.library_coordinator.data.news
+                    if news and news.appid == self.coordinator.data[self._steamid].gameid:
+                        return news
+                    return None
+
+    @property
+    @override
+    def available(self) -> bool:
+                    """Return True if entity is available."""
+                    return super().available and self.library_coordinator.last_update_success
+
+    @property
+    @override
+    def native_value(self) -> str | None:
+                    """Return the headline of the latest news."""
+                    return news.title[:MAX_LENGTH_STATE_STATE] if (news := self._news) else None
+
+    @property
+    @override
+    def extra_state_attributes(self) -> Mapping[str, Any] | None:
+                    """Return the news link, date and preview."""
+                    if (news := self._news) is None:
+                        return None
+                    return {
+                        "url": news.url,
+                        "date": dt_util.utc_from_timestamp(news.date),
+                        "preview": news.contents,
+                    }
 
                 return f"{game.unlocked_achievements} / {game.total_achievements}"
 

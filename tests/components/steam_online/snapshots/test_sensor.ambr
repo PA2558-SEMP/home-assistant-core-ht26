@@ -342,6 +342,59 @@
     'state': '2026-04-05T17:18:07+00:00',
   })
 # ---
+# name: test_sensors[sensor.testaccount1_latest_news-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': list([
+      None,
+    ]),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': None,
+    'entity_id': 'sensor.testaccount1_latest_news',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Latest news',
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': None,
+    'original_name': 'Latest news',
+    'platform': 'steam_online',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': <SteamSensor.NEWS: 'news'>,
+    'unique_id': '12345678901234567_news',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_sensors[sensor.testaccount1_latest_news-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'date': datetime.datetime(2024, 12, 13, 1, 16, 50, tzinfo=datetime.timezone.utc),
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'testaccount1 Latest news',
+      'preview': "We're thrilled to reveal the first look at The Witcher IV! The Witcher IV will be a single-player open-world RPG. It marks the beginning of a new saga with Ciri as a protagonist, embarking on her own journey to become a professional monster slayer. The trailer was produced in cooperation with Platig...",
+      'url': 'https://steamstore-a.akamaihd.net/news/externalpost/steam_community_announcements/1785774543542053',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.testaccount1_latest_news',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'The Witcher IV — Cinematic Reveal Trailer',
+  })
+# ---
 # name: test_sensors[sensor.testaccount1_level-entry]
   EntityRegistryEntrySnapshot({
     'aliases': list([

@@ -156,6 +156,14 @@
       "level": {
         "name": "Level"
       },
+      "news": {
+        "name": "Latest news",
+        "state_attributes": {
+          "date": { "name": "Date" },
+          "preview": { "name": "Preview" },
+          "url": { "name": "URL" }
+        }
+      },
       "now_playing": {
         "name": "Now playing",
         "state_attributes": {
