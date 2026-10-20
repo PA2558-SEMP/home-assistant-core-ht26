@@ -132,7 +132,6 @@ SERVICE_SEARCH_MEDIA = "search_media"
 SERVICE_SELECT_SOUND_MODE = "select_sound_mode"
 SERVICE_SELECT_SOURCE = "select_source"
 SERVICE_UNJOIN = "unjoin"
-SERVICE_PLAY_RANDOM_RADIO = "play_random_radio_station"
 
 
 class RepeatMode(StrEnum):

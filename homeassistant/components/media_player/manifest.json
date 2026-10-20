@@ -1,7 +1,6 @@
 {
   "domain": "media_player",
   "name": "Media Player",
-  "after_dependencies": ["radio_browser"],
   "codeowners": ["@home-assistant/core"],
   "dependencies": ["http"],
   "documentation": "https://www.home-assistant.io/integrations/media_player",
