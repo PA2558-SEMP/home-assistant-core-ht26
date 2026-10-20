@@ -172,6 +172,7 @@ class AchievementGame:
 
     app_id: int
     total_achievements: int
+    unlocked_achievements: int | None
 
 
 @dataclass(kw_only=True, frozen=True)
@@ -301,13 +302,48 @@ class SteamLibraryCoordinator(DataUpdateCoordinator[LibraryData]):
                     appids=game_ids,
                 )["response"]
 
-                achievement_games = [
-                    AchievementGame(
-                        app_id=game["appid"],
-                        total_achievements=game["total_achievements"],
+                achievement_games = []
+
+                for game in achievement_re.get("games", []):
+                    user_achievement_re = self.player_interface.GetUserAchievements(
+                        steamid=steamid,
+                        appid=game["appid"],
+                    )["response"]
+
+                    user_achievement = user_achievement_re.get("achievements")
+
+                    if user_achievement is None:
+                        achievement_games.append(
+                            AchievementGame(
+                                app_id=game["appid"],
+                                total_achievements=game["total_achievements"],
+                                unlocked_achievements=None,
+                            )
+                        )
+                        continue
+                    unlocked_count = 0
+                    has_unlocked = True
+
+                    for achievement in user_achievement:
+                        if "unlocked" not in achievement:
+                            has_unlocked = False
+                            break
+
+                        if achievement["unlocked"]:
+                            unlocked_count += 1
+
+                    if has_unlocked:
+                        unlocked_achievements = unlocked_count
+                    else:
+                        unlocked_achievements = None
+
+                    achievement_games.append(
+                        AchievementGame(
+                            app_id=game["appid"],
+                            total_achievements=game["total_achievements"],
+                            unlocked_achievements=unlocked_achievements,
+                        )
                     )
-                    for game in achievement_re.get("games", [])
-                ]
 
         return LibraryData(
             games_owned=owned.get("game_count"),
