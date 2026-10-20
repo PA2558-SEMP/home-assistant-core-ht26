@@ -44,6 +44,7 @@ async def async_get_random_station(
     *,
     tag: str | None = None,
     country_code: str | None = None,
+    language: str | None = None,
 ) -> RandomStationResult | None:
     """Fetch a random radio station from the browser."""
     entries = hass.config_entries.async_entries(DOMAIN)
@@ -56,7 +57,7 @@ async def async_get_random_station(
         LOGGER.warning("Random_radio_station: Radio Browser config entry not loaded")
         return None
 
-    radios = entry.runtime_data
+    radios = entry.runtime_data.radios
 
     kwargs: dict = {
         "hide_broken": True,
@@ -70,7 +71,9 @@ async def async_get_random_station(
     elif country_code:
         kwargs["filter_by"] = FilterBy.COUNTRY_CODE_EXACT
         kwargs["filter_term"] = country_code.upper()
-
+    elif language:
+        kwargs["filter_by"] = FilterBy.LANGUAGE_EXACT
+        kwargs["filter_term"] = language.lower()
     try:
         stations: list[Station] = await radios.stations(**kwargs)
     except (DNSError, RadioBrowserError) as err:
@@ -82,9 +85,10 @@ async def async_get_random_station(
     playable = [s for s in stations if s.codec != "UNKNOWN" and _get_mime_type(s)]
     if not playable:
         LOGGER.warning(
-            "Random_radio_station: No playable stations found for tag '%s' or country code '%s'",
+            "Random_radio_station: No playable stations found for tag '%s' or country code '%s' or language '%s'",
             tag,
             country_code,
+            language,
         )
         return None
 

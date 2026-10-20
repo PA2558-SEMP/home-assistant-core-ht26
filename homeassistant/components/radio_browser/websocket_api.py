@@ -26,7 +26,14 @@ def async_setup(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, websocket_random_station)
 
 
-@websocket_api.websocket_command({vol.Required("type"): "radio_browser/random_station"})
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "radio_browser/random_station",
+        vol.Optional("tag"): str,
+        vol.Optional("country_code"): str,
+        vol.Optional("language"): str,
+    }
+)
 @websocket_api.async_response
 async def websocket_random_station(
     hass: HomeAssistant,
@@ -34,7 +41,12 @@ async def websocket_random_station(
     msg: dict,
 ) -> None:
     """Return a random radio station."""
-    station = await async_get_random_station(hass)
+    tag: str | None = msg.get("tag")
+    country_code: str | None = msg.get("country_code")
+    language: str | None = msg.get("language")
+    station = await async_get_random_station(
+        hass, tag=tag, country_code=country_code, language=language
+    )
 
     if station is None:
         connection.send_error(
