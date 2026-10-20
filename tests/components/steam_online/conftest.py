@@ -86,5 +86,8 @@ def mock_steam_api() -> Generator[MagicMock]:
         client.GetUserAchievements.return_value = load_json_object_fixture(
             "GetUserAchievements.json", DOMAIN
         )
+        client.GetBadges.return_value = load_json_object_fixture(
+            "GetBadges.json", DOMAIN
+        )
 
         yield mock_client

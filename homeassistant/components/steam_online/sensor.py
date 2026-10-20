@@ -12,6 +12,7 @@ from homeassistant.components.sensor import (
     SensorEntityDescription,
     SensorStateClass,
 )
+from homeassistant.const import UnitOfTime
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
@@ -30,11 +31,13 @@ from .const import (
 )
 from .coordinator import (
     AchievementGame,
+    LibraryData,
     PlayerData,
     SteamConfigEntry,
+    SteamDataUpdateCoordinator,
     SteamLibraryCoordinator,
 )
-from .entity import SteamEntity
+from .entity import SteamEntity, SteamLibEntity
 
 PARALLEL_UPDATES = 1
 
@@ -46,6 +49,14 @@ class SteamSensor(StrEnum):
     LAST_ONLINE = "last_online"
     NOW_PLAYING = "now_playing"
     LEVEL = "level"
+    GAMES_OWNED = "games_owned"
+    TOTAL_PLAYTIME = "total_playtime"
+    XP = "xp"
+    BADGES = "badges"
+
+    # Friend Activity
+    FRIENDS_ONLINE = "friends_online"
+    FRIENDS_PLAYING = "friends_playing"
 
 
 @dataclass(kw_only=True, frozen=True)
@@ -58,6 +69,43 @@ class SteamSensorEntityDescription(SensorEntityDescription):
         Callable[[PlayerData, dict[str, str]], Mapping[str, Any]] | None
     ) = None
 
+
+@dataclass(kw_only=True, frozen=True)
+class SteamLibSensorEntityDescription(SensorEntityDescription):
+    """Steam sensor description for the library sensors."""
+
+    value_fn: Callable[[LibraryData], StateType]
+
+
+LIB_SENSOR_DESCRIPTIONS: tuple[SteamLibSensorEntityDescription, ...] = (
+    SteamLibSensorEntityDescription(
+        key=SteamSensor.GAMES_OWNED,
+        translation_key=SteamSensor.GAMES_OWNED,
+        value_fn=lambda x: x.games_owned,
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+    SteamLibSensorEntityDescription(
+        key=SteamSensor.TOTAL_PLAYTIME,
+        translation_key=SteamSensor.TOTAL_PLAYTIME,
+        value_fn=lambda x: x.total_playtime,
+        device_class=SensorDeviceClass.DURATION,
+        native_unit_of_measurement=UnitOfTime.MINUTES,
+        suggested_unit_of_measurement=UnitOfTime.HOURS,
+        state_class=SensorStateClass.TOTAL,
+    ),
+    SteamLibSensorEntityDescription(
+        key=SteamSensor.XP,
+        translation_key=SteamSensor.XP,
+        value_fn=lambda x: x.xp,
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+    SteamLibSensorEntityDescription(
+        key=SteamSensor.BADGES,
+        translation_key=SteamSensor.BADGES,
+        value_fn=lambda x: x.badges,
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+)
 
 SENSOR_DESCRIPTIONS: tuple[SteamSensorEntityDescription, ...] = (
     SteamSensorEntityDescription(
@@ -134,6 +182,29 @@ SENSOR_DESCRIPTIONS: tuple[SteamSensorEntityDescription, ...] = (
 )
 
 
+@dataclass(kw_only=True, frozen=True)
+class FriendActivitySensorEntityDescription(SensorEntityDescription):
+    """Description of a friend activity sensor."""
+
+    value_fn: Callable[[list[PlayerData]], int]
+
+
+FRIEND_ACTIVITY_DESCRIPTIONS = (
+    FriendActivitySensorEntityDescription(
+        key=SteamSensor.FRIENDS_ONLINE,
+        translation_key=SteamSensor.FRIENDS_ONLINE,
+        value_fn=lambda friends: sum(friend.personastate != 0 for friend in friends),
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+    FriendActivitySensorEntityDescription(
+        key=SteamSensor.FRIENDS_PLAYING,
+        translation_key=SteamSensor.FRIENDS_PLAYING,
+        value_fn=lambda friends: sum(bool(friend.gameid) for friend in friends),
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+)
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: SteamConfigEntry,
@@ -148,6 +219,12 @@ async def async_setup_entry(
         for description in SENSOR_DESCRIPTIONS
         if entry.unique_id in coordinator.data
     )
+    async_add_entities(
+        SteamLibSensorEntity(
+            entry.runtime_data.library_coordinator, entry.unique_id, description
+        )
+        for description in LIB_SENSOR_DESCRIPTIONS
+    )
 
     for subentry in entry.get_subentries_of_type(SUBENTRY_TYPE_FRIEND):
         async_add_entities(
@@ -157,6 +234,11 @@ async def async_setup_entry(
                 if subentry.unique_id in coordinator.data
             ],
             config_subentry_id=subentry.subentry_id,
+        )
+    if entry.unique_id in coordinator.data:
+        async_add_entities(
+            SteamFriendActivitySensorEntity(coordinator, entry, description)
+            for description in FRIEND_ACTIVITY_DESCRIPTIONS
         )
 
     library_coordinator = coordinator.library_coordinator
@@ -261,3 +343,51 @@ class SteamAchievementSensorEntity(
                 return f"{game.unlocked_achievements} / {game.total_achievements}"
 
         return None
+
+
+class SteamFriendActivitySensorEntity(SteamEntity, SensorEntity):
+    """Sensor representing aggregated Steam friend activity."""
+
+    entity_description: FriendActivitySensorEntityDescription
+
+    def __init__(
+        self,
+        coordinator: SteamDataUpdateCoordinator,
+        entry: SteamConfigEntry,
+        description: FriendActivitySensorEntityDescription,
+    ) -> None:
+        """Initialize the friend activity sensor."""
+        if TYPE_CHECKING:
+            assert entry.unique_id
+        super().__init__(coordinator, entry.unique_id, description)
+        self._entry = entry
+
+    @property
+    @override
+    def native_value(self) -> int:
+        """Calculate activity among configured Steam friends."""
+        friend_ids = (
+            subentry.unique_id
+            for subentry in self._entry.get_subentries_of_type(SUBENTRY_TYPE_FRIEND)
+            if subentry.unique_id
+        )
+
+        friends = [
+            self.coordinator.data[steamid]
+            for steamid in friend_ids
+            if steamid in self.coordinator.data
+        ]
+
+        return self.entity_description.value_fn(friends)
+
+
+class SteamLibSensorEntity(SteamLibEntity, SensorEntity):
+    """Representation of a Steam library sensor entity."""
+
+    entity_description: SteamLibSensorEntityDescription
+
+    @property
+    @override
+    def native_value(self) -> StateType:
+        """Return the state of the sensor."""
+        return self.entity_description.value_fn(self.coordinator.data)
