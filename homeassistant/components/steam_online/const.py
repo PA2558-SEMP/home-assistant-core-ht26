@@ -11,6 +11,7 @@ DOMAIN: Final = "steam_online"
 
 LIBRARY_UPDATE_INTERVAL = timedelta(minutes=15)
 NEWS_MAX_LENGTH = 300
+NEWS_FEEDS = "steam_community_announcements, steam_updates, client_events"
 ACHIEVEMENT_LIMIT = 5
 
 PLACEHOLDERS = {

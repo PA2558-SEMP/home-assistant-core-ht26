@@ -17,6 +17,7 @@ from .const import (
     ACHIEVEMENT_LIMIT,
     DOMAIN,
     LIBRARY_UPDATE_INTERVAL,
+    NEWS_FEEDS,
     NEWS_MAX_LENGTH,
     SUBENTRY_TYPE_FRIEND,
 )
@@ -241,7 +242,11 @@ class SteamLibraryCoordinator(DataUpdateCoordinator[LibraryData]):
             return None
         try:
             items = self.news_interface.GetNewsForApp(
-                version=2, appid=gameid, count=1, maxlength=NEWS_MAX_LENGTH
+                version=2,
+                appid=gameid,
+                count=1,
+                maxlength=NEWS_MAX_LENGTH,
+                feeds=NEWS_FEEDS,
             )["appnews"]["newsitems"]
         except steam.api.HTTPError:
             # News is optional, so never fail the refresh or start reauth for it
