@@ -28,6 +28,11 @@
           "unknown": "mdi:controller-off"
         }
       },
+      "friends_online": {
+        "default": "mdi:account-group"
+      },
+      "friends_playing": {
+        "default": "mdi:gamepad-variant"
       "total_playtime": {
         "default": "mdi:timer-outline"
       },
