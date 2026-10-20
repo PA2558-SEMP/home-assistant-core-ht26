@@ -12,6 +12,12 @@
       "badges": {
         "default": "mdi:medal"
       },
+      "friends_online": {
+        "default": "mdi:account-group"
+      },
+      "friends_playing": {
+        "default": "mdi:gamepad-variant"
+      },
       "games_owned": {
         "default": "mdi:bookshelf"
       },
@@ -28,11 +34,6 @@
           "unknown": "mdi:controller-off"
         }
       },
-      "friends_online": {
-        "default": "mdi:account-group"
-      },
-      "friends_playing": {
-        "default": "mdi:gamepad-variant"
       "total_playtime": {
         "default": "mdi:timer-outline"
       },

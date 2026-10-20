@@ -18,13 +18,6 @@ from tests.common import (
     snapshot_platform,
 )
 
-from copy import deepcopy
-from unittest.mock import MagicMock
-
-from homeassistant.components.steam_online.const import DOMAIN
-
-from . import ACCOUNT_1, ACCOUNT_2
-
 
 @pytest.fixture(autouse=True)
 def sensor_only() -> Generator[None]:

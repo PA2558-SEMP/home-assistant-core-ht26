@@ -141,6 +141,12 @@
       "badges": {
         "name": "Badges"
       },
+      "friends_online": {
+        "name": "Friends online"
+      },
+      "friends_playing": {
+        "name": "Friends playing"
+      },
       "games_owned": {
         "name": "Games owned"
       },
@@ -156,11 +162,6 @@
           "app_id": { "name": "Steam App ID" }
         }
       },
-      "friends_online": {
-        "name": "Friends online"
-      },
-      "friends_playing": {
-        "name": "Friends playing"
       "total_playtime": {
         "name": "Total playtime"
       },
