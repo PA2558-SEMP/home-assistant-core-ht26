@@ -12,6 +12,7 @@ from homeassistant.components.sensor import (
     SensorEntityDescription,
     SensorStateClass,
 )
+from homeassistant.const import UnitOfTime
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.typing import StateType
@@ -25,8 +26,8 @@ from .const import (
     STEAM_STATUSES,
     SUBENTRY_TYPE_FRIEND,
 )
-from .coordinator import PlayerData, SteamConfigEntry
-from .entity import SteamEntity
+from .coordinator import LibraryData, PlayerData, SteamConfigEntry
+from .entity import SteamEntity, SteamLibEntity
 
 PARALLEL_UPDATES = 1
 
@@ -38,6 +39,10 @@ class SteamSensor(StrEnum):
     LAST_ONLINE = "last_online"
     NOW_PLAYING = "now_playing"
     LEVEL = "level"
+    GAMES_OWNED = "games_owned"
+    TOTAL_PLAYTIME = "total_playtime"
+    XP = "xp"
+    BADGES = "badges"
 
     # Friend Activity
     FRIENDS_ONLINE = "friends_online"
@@ -54,6 +59,43 @@ class SteamSensorEntityDescription(SensorEntityDescription):
         Callable[[PlayerData, dict[str, str]], Mapping[str, Any]] | None
     ) = None
 
+
+@dataclass(kw_only=True, frozen=True)
+class SteamLibSensorEntityDescription(SensorEntityDescription):
+    """Steam sensor description for the library sensors."""
+
+    value_fn: Callable[[LibraryData], StateType]
+
+
+LIB_SENSOR_DESCRIPTIONS: tuple[SteamLibSensorEntityDescription, ...] = (
+    SteamLibSensorEntityDescription(
+        key=SteamSensor.GAMES_OWNED,
+        translation_key=SteamSensor.GAMES_OWNED,
+        value_fn=lambda x: x.games_owned,
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+    SteamLibSensorEntityDescription(
+        key=SteamSensor.TOTAL_PLAYTIME,
+        translation_key=SteamSensor.TOTAL_PLAYTIME,
+        value_fn=lambda x: x.total_playtime,
+        device_class=SensorDeviceClass.DURATION,
+        native_unit_of_measurement=UnitOfTime.MINUTES,
+        suggested_unit_of_measurement=UnitOfTime.HOURS,
+        state_class=SensorStateClass.TOTAL,
+    ),
+    SteamLibSensorEntityDescription(
+        key=SteamSensor.XP,
+        translation_key=SteamSensor.XP,
+        value_fn=lambda x: x.xp,
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+    SteamLibSensorEntityDescription(
+        key=SteamSensor.BADGES,
+        translation_key=SteamSensor.BADGES,
+        value_fn=lambda x: x.badges,
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+)
 
 SENSOR_DESCRIPTIONS: tuple[SteamSensorEntityDescription, ...] = (
     SteamSensorEntityDescription(
@@ -170,6 +212,12 @@ async def async_setup_entry(
         for description in SENSOR_DESCRIPTIONS
         if entry.unique_id in coordinator.data
     )
+    async_add_entities(
+        SteamLibSensorEntity(
+            entry.runtime_data.library_coordinator, entry.unique_id, description
+        )
+        for description in LIB_SENSOR_DESCRIPTIONS
+    )
 
     for subentry in entry.get_subentries_of_type(SUBENTRY_TYPE_FRIEND):
         async_add_entities(
@@ -254,3 +302,14 @@ class SteamFriendActivitySensorEntity(SteamEntity, SensorEntity):
         ]
 
         return self.entity_description.value_fn(friends)
+
+class SteamLibSensorEntity(SteamLibEntity, SensorEntity):
+    """Representation of a Steam library sensor entity."""
+
+    entity_description: SteamLibSensorEntityDescription
+
+    @property
+    @override
+    def native_value(self) -> StateType:
+        """Return the state of the sensor."""
+        return self.entity_description.value_fn(self.coordinator.data)
