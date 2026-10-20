@@ -21,6 +21,30 @@ paused: *trigger_common
 restarted: *trigger_common
 started: *trigger_common
 
+.trigger_phase: &trigger_phase
+  target:
+    entity:
+      domain: timer
+  fields:
+    behavior:
+      required: true
+      default: each
+      selector:
+        automation_behavior:
+          mode: trigger
+    for:
+      required: true
+      default: 00:00:00
+      selector:
+        duration:
+    phase:
+      required: false
+      selector:
+        text:
+
+phase_started: *trigger_phase
+phase_finished: *trigger_phase
+
 remaining_time_reached:
   target:
     entity:

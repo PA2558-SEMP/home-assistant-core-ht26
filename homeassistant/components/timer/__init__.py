@@ -26,7 +26,11 @@ from homeassistant.helpers.storage import Store
 from homeassistant.helpers.typing import ConfigType, VolDictType
 from homeassistant.util import dt as dt_util
 
-from .const import TimerEntityStateAttribute
+from .const import (
+    EVENT_TIMER_PHASE_FINISHED,
+    EVENT_TIMER_PHASE_STARTED,
+    TimerEntityStateAttribute,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -45,6 +49,17 @@ ATTR_LAST_TRANSITION = "last_transition"
 
 CONF_DURATION = "duration"
 CONF_RESTORE = "restore"
+CONF_PHASES = "phases"
+CONF_ITERATIONS = "iterations"
+
+DEFAULT_ITERATIONS = 1
+
+PHASE_SCHEMA = vol.Schema(
+    {
+        vol.Required(CONF_NAME): cv.string,
+        vol.Required(CONF_DURATION): cv.time_period,
+    }
+)
 
 STATUS_IDLE = "idle"
 STATUS_ACTIVE = "active"
@@ -71,6 +86,10 @@ STORAGE_FIELDS: VolDictType = {
     vol.Optional(CONF_ICON): cv.icon,
     vol.Optional(CONF_DURATION, default=DEFAULT_DURATION): cv.time_period,
     vol.Optional(CONF_RESTORE, default=DEFAULT_RESTORE): cv.boolean,
+    vol.Optional(CONF_PHASES, default=[]): [PHASE_SCHEMA],
+    vol.Optional(CONF_ITERATIONS, default=DEFAULT_ITERATIONS): vol.All(
+        int, vol.Range(min=0)
+    ),
 }
 
 
@@ -99,6 +118,17 @@ CONFIG_SCHEMA = vol.Schema(
                         cv.time_period, _format_timedelta
                     ),
                     vol.Optional(CONF_RESTORE, default=DEFAULT_RESTORE): cv.boolean,
+                    vol.Optional(CONF_PHASES, default=[]): [
+                        {
+                            vol.Required(CONF_NAME): cv.string,
+                            vol.Required(CONF_DURATION): vol.All(
+                                cv.time_period, _format_timedelta
+                            ),
+                        }
+                    ],
+                    vol.Optional(
+                        CONF_ITERATIONS, default=DEFAULT_ITERATIONS
+                    ): vol.All(int, vol.Range(min=0)),
                 },
             )
         )
@@ -180,6 +210,8 @@ class TimerStorageCollection(collection.DictStorageCollection):
         data = self.CREATE_UPDATE_SCHEMA(data)
         # make duration JSON serializeable
         data[CONF_DURATION] = _format_timedelta(data[CONF_DURATION])
+        for phase in data.get(CONF_PHASES, []):
+            phase[CONF_DURATION] = _format_timedelta(phase[CONF_DURATION])
         return data
 
     @callback
@@ -195,6 +227,8 @@ class TimerStorageCollection(collection.DictStorageCollection):
         # make duration JSON serializeable
         if CONF_DURATION in update_data:
             data[CONF_DURATION] = _format_timedelta(data[CONF_DURATION])
+        for phase in data.get(CONF_PHASES, []):
+            phase[CONF_DURATION] = _format_timedelta(phase[CONF_DURATION])
         return data  # type: ignore[no-any-return]
 
 
@@ -214,6 +248,11 @@ class Timer(collection.CollectionEntity, RestoreEntity):
         self._end: datetime | None = None
         self._listener: Callable[[], None] | None = None
         self._restore: bool = self._config.get(CONF_RESTORE, DEFAULT_RESTORE)
+        # Chain-timer state: phases is empty for a plain timer.
+        self._phases: list[dict] = config.get(CONF_PHASES, [])
+        self._iterations: int = config.get(CONF_ITERATIONS, DEFAULT_ITERATIONS)
+        self._current_phase_idx: int = 0
+        self._current_cycle: int = 1
 
         self._attr_should_poll = False
         self._attr_force_update = True
@@ -272,6 +311,15 @@ class Timer(collection.CollectionEntity, RestoreEntity):
             )
         if self._restore:
             attrs[TimerEntityStateAttribute.RESTORE] = self._restore
+        if self._phases:
+            attrs[TimerEntityStateAttribute.CURRENT_PHASE_INDEX] = (
+                self._current_phase_idx
+            )
+            attrs[TimerEntityStateAttribute.CURRENT_PHASE_NAME] = self._phases[
+                self._current_phase_idx
+            ][CONF_NAME]
+            attrs[TimerEntityStateAttribute.CURRENT_CYCLE] = self._current_cycle
+            attrs[TimerEntityStateAttribute.TOTAL_CYCLES] = self._iterations
 
         return attrs
 
@@ -338,6 +386,12 @@ class Timer(collection.CollectionEntity, RestoreEntity):
         self._state = STATUS_ACTIVE
         start = dt_util.utcnow().replace(microsecond=0)
 
+        # For chain-timers without an explicit override, use the current phase duration.
+        if not duration and self._phases:
+            duration = cv.time_period(
+                self._phases[self._current_phase_idx][CONF_DURATION]
+            )
+
         # Set remaining and running duration unless resuming or restarting
         if duration:
             self._remaining = self._running_duration = duration
@@ -351,6 +405,16 @@ class Timer(collection.CollectionEntity, RestoreEntity):
         )
 
         self._fire_event_and_write_state(event)
+
+        if self._phases:
+            self._fire_event_and_write_state(
+                EVENT_TIMER_PHASE_STARTED,
+                extra_attrs={
+                    "phase_index": self._current_phase_idx,
+                    "phase_name": self._phases[self._current_phase_idx][CONF_NAME],
+                    "cycle": self._current_cycle,
+                },
+            )
 
     @callback
     def async_change(self, duration: timedelta) -> None:
@@ -409,6 +473,9 @@ class Timer(collection.CollectionEntity, RestoreEntity):
         self._end = None
         self._remaining = None
         self._running_duration = self._configured_duration
+        # Reset chain position so the next start begins from the first phase.
+        self._current_phase_idx = 0
+        self._current_cycle = 1
         self._fire_event_and_write_state(EVENT_TIMER_CANCELLED)
 
     @callback
@@ -423,10 +490,14 @@ class Timer(collection.CollectionEntity, RestoreEntity):
         end = self._end
         if end is None:
             end = dt_util.utcnow().replace(microsecond=0)
-        self._state = STATUS_IDLE
         self._end = None
         self._remaining = None
         self._running_duration = self._configured_duration
+
+        if self._advance_chain():
+            return
+
+        self._state = STATUS_IDLE
         self._fire_event_and_write_state(
             EVENT_TIMER_FINISHED, extra_attrs={ATTR_FINISHED_AT: end.isoformat()}
         )
@@ -438,14 +509,58 @@ class Timer(collection.CollectionEntity, RestoreEntity):
             return
 
         self._listener = None
-        self._state = STATUS_IDLE
         end = self._end
         self._end = None
         self._remaining = None
         self._running_duration = self._configured_duration
+
+        if self._advance_chain():
+            return
+
+        self._state = STATUS_IDLE
         self._fire_event_and_write_state(
             EVENT_TIMER_FINISHED, extra_attrs={ATTR_FINISHED_AT: end.isoformat()}
         )
+
+    @callback
+    def _advance_chain(self) -> bool:
+        """Advance to the next phase or cycle of a chain-timer.
+
+        Returns True if the chain continues (caller should not go idle),
+        False if the chain is complete or this is not a chain-timer.
+        """
+        if not self._phases:
+            return False
+
+        self._fire_event_and_write_state(
+            EVENT_TIMER_PHASE_FINISHED,
+            extra_attrs={
+                "phase_index": self._current_phase_idx,
+                "phase_name": self._phases[self._current_phase_idx][CONF_NAME],
+                "cycle": self._current_cycle,
+            },
+        )
+
+        next_idx = self._current_phase_idx + 1
+        if next_idx < len(self._phases):
+            # More phases remain in the current cycle.
+            self._current_phase_idx = next_idx
+            self._state = STATUS_IDLE
+            self.async_start()
+            return True
+
+        # All phases in this cycle are done — check if another cycle should start.
+        if self._iterations == 0 or self._current_cycle < self._iterations:
+            self._current_cycle += 1
+            self._current_phase_idx = 0
+            self._state = STATUS_IDLE
+            self.async_start()
+            return True
+
+        # All cycles complete — reset chain position for the next manual start.
+        self._current_phase_idx = 0
+        self._current_cycle = 1
+        return False
 
     @override
     async def async_update_config(self, config: ConfigType) -> None:
@@ -455,6 +570,11 @@ class Timer(collection.CollectionEntity, RestoreEntity):
         if self._state == STATUS_IDLE:
             self._running_duration = self._configured_duration
         self._restore = config.get(CONF_RESTORE, DEFAULT_RESTORE)
+        self._phases = config.get(CONF_PHASES, [])
+        self._iterations = config.get(CONF_ITERATIONS, DEFAULT_ITERATIONS)
+        if self._state == STATUS_IDLE:
+            self._current_phase_idx = 0
+            self._current_cycle = 1
         self.async_write_ha_state()
 
     def _fire_event_and_write_state(
