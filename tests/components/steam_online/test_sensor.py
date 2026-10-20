@@ -20,6 +20,13 @@ from tests.common import (
     snapshot_platform,
 )
 
+from copy import deepcopy
+from unittest.mock import MagicMock
+
+from homeassistant.components.steam_online.const import DOMAIN
+
+from . import ACCOUNT_1, ACCOUNT_2
+
 
 @pytest.fixture(autouse=True)
 def sensor_only() -> Generator[None]:
@@ -81,3 +88,74 @@ async def test_news_unknown(
     assert config_entry.state is ConfigEntryState.LOADED
     assert (state := hass.states.get("sensor.testaccount1_latest_news"))
     assert state.state == STATE_UNKNOWN
+
+
+@pytest.mark.usefixtures("steam_api")
+async def test_friend_activity_sensors(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    entity_registry: er.EntityRegistry,
+) -> None:
+    """Test friend activity sensors with initial Steam API data."""
+
+    config_entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert config_entry.state is ConfigEntryState.LOADED
+
+    online_entity_id = entity_registry.async_get_entity_id(
+        "sensor", DOMAIN, f"{ACCOUNT_1}_friends_online"
+    )
+    playing_entity_id = entity_registry.async_get_entity_id(
+        "sensor", DOMAIN, f"{ACCOUNT_1}_friends_playing"
+    )
+
+    assert online_entity_id is not None
+    assert playing_entity_id is not None
+
+    assert hass.states.get(online_entity_id).state == "1"
+    assert hass.states.get(playing_entity_id).state == "0"
+
+
+async def test_friend_activity_updates(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    entity_registry: er.EntityRegistry,
+    steam_api: MagicMock,
+) -> None:
+    """Test friend activity sensors when a friend starts playing."""
+
+    config_entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    online_entity_id = entity_registry.async_get_entity_id(
+        "sensor", DOMAIN, f"{ACCOUNT_1}_friends_online"
+    )
+    playing_entity_id = entity_registry.async_get_entity_id(
+        "sensor", DOMAIN, f"{ACCOUNT_1}_friends_playing"
+    )
+
+    assert online_entity_id is not None
+    assert playing_entity_id is not None
+
+    assert hass.states.get(online_entity_id).state == "1"
+    assert hass.states.get(playing_entity_id).state == "0"
+
+    client = steam_api.return_value
+    response = deepcopy(client.GetPlayerSummaries.return_value)
+
+    for player in response["response"]["players"]["player"]:
+        if player["steamid"] == ACCOUNT_2:
+            player["personastate"] = 1
+            player["gameid"] = "730"
+            player["gameextrainfo"] = "Counter-Strike 2"
+
+    client.GetPlayerSummaries.return_value = response
+
+    await config_entry.runtime_data.async_request_refresh()
+    await hass.async_block_till_done()
+
+    assert hass.states.get(online_entity_id).state == "1"
+    assert hass.states.get(playing_entity_id).state == "1"
