@@ -97,9 +97,6 @@
     "play_media": {
       "service": "mdi:play"
     },
-    "play_random_radio_station": {
-      "service": "mdi:radio"
-    },
     "repeat_set": {
       "service": "mdi:repeat"
     },
