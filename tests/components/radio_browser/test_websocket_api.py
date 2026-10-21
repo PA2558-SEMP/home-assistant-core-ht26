@@ -3,7 +3,9 @@
 from types import SimpleNamespace
 from unittest.mock import patch
 
+from aiodns.error import DNSError
 import pytest
+from radios import RadioBrowserError
 
 from homeassistant.components import websocket_api
 from homeassistant.core import HomeAssistant
@@ -192,6 +194,53 @@ async def test_add_favorite_not_found(
             },
         }
         mock_station.assert_awaited_once_with(uuid="unknown-station")
+
+    favorites = await init_integration.runtime_data.favorites.async_load_favorites()
+
+    assert favorites == []
+
+
+@pytest.mark.parametrize(
+    "exception",
+    [
+        pytest.param(DNSError, id="dns-error"),
+        pytest.param(RadioBrowserError, id="radio-browser-error"),
+    ],
+)
+async def test_add_favorite_fetch_error(
+    hass: HomeAssistant,
+    init_integration: MockConfigEntry,
+    hass_ws_client: WebSocketGenerator,
+    exception: type[Exception],
+) -> None:
+    """Test that station fetching errors return an error without adding favorites."""
+    client = await hass_ws_client(hass)
+    error = exception("Unable to fetch station")
+
+    with patch.object(
+        init_integration.runtime_data.radios,
+        "station",
+        side_effect=error,
+    ) as mock_station:
+        await client.send_json(
+            {
+                "id": 1,
+                "type": "radio_browser/favorites/add",
+                "uuid": "test-station",
+            }
+        )
+        response = await client.receive_json()
+
+        assert response == {
+            "id": 1,
+            "type": "result",
+            "success": False,
+            "error": {
+                "code": websocket_api.ERR_UNKNOWN_ERROR,
+                "message": str(error),
+            },
+        }
+        mock_station.assert_awaited_once_with(uuid="test-station")
 
     favorites = await init_integration.runtime_data.favorites.async_load_favorites()
 
