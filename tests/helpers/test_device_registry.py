@@ -8596,7 +8596,13 @@ async def test_remove_shadowed_collision_keeps_index_consistent(
     )
     # allow_collisions lets `device` absorb the shadowed device's identifier
     device_registry._async_update_device(
-        device.id, merge_identifiers={("test", "2")}, allow_collisions=True
+        device.id,
+        dr._DeviceUpdate(
+            identity=dr._DeviceIdentityUpdate(
+                merge_identifiers={("test", "2")},
+                allow_collisions=True,
+            ),
+        ),
     )
     assert device_registry.async_get(device.id).identifiers == {
         ("test", "1"),
@@ -12403,7 +12409,14 @@ async def test_convert_device_with_composite_identifiers_to_child(
         name="Outlet 1",
         via_device_id=parent.id,
     )
-    device_registry._async_update_device(device.id, has_composite_identifiers=True)
+    device_registry._async_update_device(
+        device.id,
+        dr._DeviceUpdate(
+            identity=dr._DeviceIdentityUpdate(
+                has_composite_identifiers=True,
+            ),
+        ),
+    )
     device_registry.async_config_entry_unloaded(mock_config_entry.entry_id)
     update_events = async_capture_events(hass, dr.EVENT_DEVICE_REGISTRY_UPDATED)
 
@@ -12475,13 +12488,23 @@ async def test_move_parent_with_pending_move_and_children_rejected(
 
     # Arm a deferred move of the parent to another config entry
     device_registry._async_update_device(
-        parent.id, add_config_entry_id=other_entry.entry_id
+        parent.id,
+        dr._DeviceUpdate(
+            config=dr._DeviceConfigEntryUpdate(
+                add_config_entry_id=other_entry.entry_id,
+            ),
+        ),
     )
 
     # Completing the pending move by removing the current owner is rejected
     with pytest.raises(HomeAssistantError, match="has child devices"):
         device_registry._async_update_device(
-            parent.id, remove_config_entry_id=mock_config_entry.entry_id
+            parent.id,
+            dr._DeviceUpdate(
+                config=dr._DeviceConfigEntryUpdate(
+                    remove_config_entry_id=mock_config_entry.entry_id,
+                ),
+            ),
         )
 
     unchanged_parent = device_registry.async_get(parent.id)
