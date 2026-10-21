@@ -34,14 +34,26 @@ async def test_get_random_station(
     station: SimpleNamespace,
 ) -> None:
     """Test returning a playable station and recording its click."""
+    second_station = SimpleNamespace(
+        uuid="second-test-station",
+        name="Second test station",
+        codec="MP3",
+        url="https://example.com/radio.mp3",
+        url_resolved="https://example.com/stream.mp3",
+    )
     radios = init_integration.runtime_data
 
+    stations = [station, second_station]
     with (
         patch.object(
             radios,
             "stations",
-            return_value=[station],
+            return_value=stations,
         ) as mock_stations,
+        patch.object(
+            "homeassistant.components.radio_browser.random_station.random.choice",
+            return_value=second_station,
+        ) as mock_choice,
         patch.object(radios, "station_click") as mock_click,
     ):
         result = await async_get_random_station(hass)
@@ -52,13 +64,14 @@ async def test_get_random_station(
             limit=50,
             reverse=False,
         )
-        mock_click.assert_awaited_once_with(uuid="test-station")
+        mock_choice.assert_called_once_with([station, second_station])
+        mock_click.assert_awaited_once_with(uuid=second_station.uuid)
 
     assert result == RandomStationResult(
-        name="Test station",
-        url="https://example.com/stream.mp3",
-        mime_type="audio/mpeg",
-        uuid="test-station",
+        name=second_station.name,
+        url=second_station.url_resolved,
+        mime_type="audio/mp3",
+        uuid="second_station.uuid",
     )
 
 
