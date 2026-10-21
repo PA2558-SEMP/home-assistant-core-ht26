@@ -351,13 +351,7 @@ async def test_update_item(
     # Update item
     update_time = datetime(2023, 11, 18, 8, 0, 0, tzinfo=dt_util.UTC)
     with freeze_time(update_time):
-        await hass.services.async_call(
-            TODO_DOMAIN,
-            TodoServices.UPDATE_ITEM,
-            {ATTR_ITEM: item["uid"], **item_data},
-            target={ATTR_ENTITY_ID: TEST_ENTITY},
-            blocking=True,
-        )
+        await _update_item(hass, item["uid"], item_data)
 
     # Verify item is updated
     items = await ws_get_items()
@@ -477,13 +471,7 @@ async def test_update_existing_field(
     # Perform update
     update_time = datetime(2023, 11, 18, 8, 0, 0, tzinfo=dt_util.UTC)
     with freeze_time(update_time):
-        await hass.services.async_call(
-            TODO_DOMAIN,
-            TodoServices.UPDATE_ITEM,
-            {ATTR_ITEM: item["uid"], **item_data},
-            target={ATTR_ENTITY_ID: TEST_ENTITY},
-            blocking=True,
-        )
+        await _update_item(hass, item["uid"], item_data)
 
     # Verify item is updated
     items = await ws_get_items()
@@ -523,13 +511,7 @@ async def test_rename(
     assert state.state == "1"
 
     # Rename item
-    await hass.services.async_call(
-        TODO_DOMAIN,
-        TodoServices.UPDATE_ITEM,
-        {ATTR_ITEM: item["uid"], ATTR_RENAME: "water"},
-        target={ATTR_ENTITY_ID: TEST_ENTITY},
-        blocking=True,
-    )
+    await _update_item(hass, item["uid"], {ATTR_RENAME: "water"})
 
     # Verify item has been renamed
     items = await ws_get_items()
@@ -822,13 +804,7 @@ async def test_susbcribe(
     assert uid
 
     # Rename item
-    await hass.services.async_call(
-        TODO_DOMAIN,
-        TodoServices.UPDATE_ITEM,
-        {ATTR_ITEM: uid, ATTR_RENAME: "milk"},
-        target={ATTR_ENTITY_ID: TEST_ENTITY},
-        blocking=True,
-    )
+    await _update_item(hass, uid, {ATTR_RENAME: "milk"})
 
     # Verify update is published
     msg = await client.receive_json()
@@ -874,13 +850,7 @@ async def test_reset_item_via_update(
     # Complete item
     update_time = datetime(2023, 11, 18, 8, 0, 0, tzinfo=dt_util.UTC)
     with freeze_time(update_time):
-        await hass.services.async_call(
-            TODO_DOMAIN,
-            TodoServices.UPDATE_ITEM,
-            {ATTR_ITEM: item_uid, ATTR_STATUS: "completed"},
-            target={ATTR_ENTITY_ID: TEST_ENTITY},
-            blocking=True,
-        )
+        await _update_item(hass, item_uid, {ATTR_STATUS: "completed"})
 
     # Verify item is completed
     items = await ws_get_items()
@@ -902,13 +872,7 @@ async def test_reset_item_via_update(
     # Reset item
     update_time = datetime(2023, 11, 18, 8, 1, 0, tzinfo=dt_util.UTC)
     with freeze_time(update_time):
-        await hass.services.async_call(
-            TODO_DOMAIN,
-            TodoServices.UPDATE_ITEM,
-            {ATTR_ITEM: item_uid, ATTR_STATUS: "needs_action"},
-            target={ATTR_ENTITY_ID: TEST_ENTITY},
-            blocking=True,
-        )
+        await _update_item(hass, item_uid, {ATTR_STATUS: "needs_action"})
 
     # Verify item is not completed
     items = await ws_get_items()
