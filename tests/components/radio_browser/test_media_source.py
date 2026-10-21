@@ -49,10 +49,10 @@ async def test_browsing_local(
     assert item.can_expand is True
     assert item.can_search is True
 
-    assert item.children[3].title == "Local stations"
+    assert item.children[4].title == "Local stations"
 
     item_child = await media_source.async_browse_media(
-        hass, item.children[3].media_content_id
+        hass, item.children[4].media_content_id
     )
 
     source.radios.stations.assert_awaited_with(
