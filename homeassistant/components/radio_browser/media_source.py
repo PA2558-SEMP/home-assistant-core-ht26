@@ -120,12 +120,12 @@ class RadioMediaSource(MediaSource):
                 can_search=True,
                 children_media_class=MediaClass.DIRECTORY,
                 children=[
+                    *await self._async_build_favorites(item),
                     *await self._async_build_popular(radios, item),
                     *await self._async_build_by_tag(radios, item),
                     *await self._async_build_by_language(radios, item),
                     *await self._async_build_local(radios, item),
                     *await self._async_build_by_country(radios, item),
-                    *await self._async_build_favorites(item),
                 ],
             )
         except (DNSError, RadioBrowserError) as e:

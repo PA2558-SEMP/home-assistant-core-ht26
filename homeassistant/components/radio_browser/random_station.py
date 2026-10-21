@@ -56,7 +56,7 @@ async def async_get_random_station(
         LOGGER.warning("Random_radio_station: Radio Browser config entry not loaded")
         return None
 
-    radios = entry.runtime_data
+    radios = entry.runtime_data.radios
 
     kwargs: dict = {
         "hide_broken": True,
