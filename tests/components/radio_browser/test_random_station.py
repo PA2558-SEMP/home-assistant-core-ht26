@@ -41,7 +41,7 @@ async def test_get_random_station(
         url="https://example.com/radio.mp3",
         url_resolved="https://example.com/stream.mp3",
     )
-    radios = init_integration.runtime_data
+    radios = init_integration.runtime_data.radios
 
     stations = [station, second_station]
     with (
@@ -50,7 +50,7 @@ async def test_get_random_station(
             "stations",
             return_value=stations,
         ) as mock_stations,
-        patch.object(
+        patch(
             "homeassistant.components.radio_browser.random_station.random.choice",
             return_value=second_station,
         ) as mock_choice,
@@ -70,8 +70,8 @@ async def test_get_random_station(
     assert result == RandomStationResult(
         name=second_station.name,
         url=second_station.url_resolved,
-        mime_type="audio/mp3",
-        uuid="second_station.uuid",
+        mime_type="audio/mpeg",
+        uuid=second_station.uuid,
     )
 
 
@@ -111,7 +111,7 @@ async def test_get_random_station_filters(
     station: SimpleNamespace,
 ) -> None:
     """Test the filter arguments sent to Radio Browser."""
-    radios = init_integration.runtime_data
+    radios = init_integration.runtime_data.radios
 
     with patch.object(
         radios,
@@ -142,7 +142,7 @@ async def test_radio_browser_returns_empty_list(
     init_integration: MockConfigEntry,
 ) -> None:
     """Test that no stations returns None without recording a click."""
-    radios = init_integration.runtime_data
+    radios = init_integration.runtime_data.radios
 
     with (
         patch.object(
@@ -190,7 +190,7 @@ async def test_unplayable_station(
     """Test that unplayable stations return None without recording a click."""
     station.codec = codec
     station.url = url
-    radios = init_integration.runtime_data
+    radios = init_integration.runtime_data.radios
 
     with (
         patch.object(radios, "stations", return_value=[station]),
@@ -216,7 +216,7 @@ async def test_fetch_stations_error(
     exception: type[Exception],
 ) -> None:
     """Test that a station fetching error returns None."""
-    radios = init_integration.runtime_data
+    radios = init_integration.runtime_data.radios
 
     with (
         patch.object(
@@ -247,7 +247,7 @@ async def test_station_click_error(
     exception: type[Exception],
 ) -> None:
     """Test that a click error does not prevent returning the station."""
-    radios = init_integration.runtime_data
+    radios = init_integration.runtime_data.radios
 
     with (
         patch.object(radios, "stations", return_value=[station]),
