@@ -343,19 +343,14 @@ class SteamLibraryCoordinator(DataUpdateCoordinator[LibraryData]):
                         continue
 
                     unlocked_count = 0
-                    any_unlocked = False
 
                     for achievement in user_achievement:
                         if "unlocked" not in achievement:
                             continue
                         if achievement["unlocked"]:
-                            any_unlocked = True
                             unlocked_count += 1
 
-                    if any_unlocked:
-                        unlocked_achievements = unlocked_count
-                    else:
-                        unlocked_achievements = None
+                    unlocked_achievements = unlocked_count
 
                     achievement_games.append(
                         AchievementGame(
