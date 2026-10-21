@@ -44,7 +44,7 @@ async def test_browsing_local(
     assert item is not None
     assert item.title == "My Radios"
     assert item.children is not None
-    assert len(item.children) == 5
+    assert len(item.children) == 6
     assert item.can_play is False
     assert item.can_expand is True
     assert item.can_search is True
@@ -257,3 +257,60 @@ async def test_resolve_media_not_ready(
                 hass, f"{media_source.URI_SCHEME}{DOMAIN}/123456", None
             )
         assert exc_info.value.translation_key == "config_entry_not_ready"
+
+
+async def test_browsing_favorites(
+    hass: HomeAssistant,
+    init_integration: MockConfigEntry,
+) -> None:
+    """Test browsing favorite radio stations."""
+
+    stations = [
+        {
+            "uuid": "test-station-1",
+            "name": "Test station 1",
+            "url_resolved": "https://example.com/station1.mp3",
+            "favicon": "",
+            "codec": "MP3",
+        },
+        {
+            "uuid": "test-station-2",
+            "name": "Test station 2",
+            "url_resolved": "https://example.com/station2.mp3",
+            "favicon": "",
+            "codec": "MP3",
+        },
+    ]
+
+    manager = init_integration.runtime_data.favorites
+
+    for station in stations:
+        await manager.async_add_favorite(station)
+
+    item = await media_source.async_browse_media(
+        hass,
+        f"{media_source.URI_SCHEME}{DOMAIN}/favorites",
+    )
+
+    assert item.children is not None
+    assert len(item.children) == 2
+
+    test_station_1, test_station_2 = item.children
+
+    assert test_station_1.title == "Test station 1"
+    assert test_station_1.media_content_id == (
+        f"{media_source.URI_SCHEME}{DOMAIN}/test-station-1"
+    )
+    assert test_station_1.media_content_type == "audio/mpeg"
+    assert test_station_1.can_play is True
+    assert test_station_1.can_expand is False
+    assert test_station_1.thumbnail is None
+
+    assert test_station_2.title == "Test station 2"
+    assert test_station_2.media_content_id == (
+        f"{media_source.URI_SCHEME}{DOMAIN}/test-station-2"
+    )
+    assert test_station_2.media_content_type == "audio/mpeg"
+    assert test_station_2.can_play is True
+    assert test_station_2.can_expand is False
+    assert test_station_2.thumbnail is None
