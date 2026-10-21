@@ -53,10 +53,12 @@ def unique_input_validator(inputs: Any) -> Any:
     all_inputs = set()
     for key, value in inputs.items():
         if value and CONF_INPUT in value:
-            for key in value[CONF_INPUT]:
-                if key in all_inputs:
-                    raise vol.Invalid(f"Duplicate use of input key {key} in blueprint.")
-                all_inputs.add(key)
+            for input_key in value[CONF_INPUT]:
+                if input_key in all_inputs:
+                    raise vol.Invalid(
+                        f"Duplicate use of input key {input_key} in blueprint."
+                    )
+                all_inputs.add(input_key)
         else:
             if key in all_inputs:
                 raise vol.Invalid(f"Duplicate use of input key {key} in blueprint.")

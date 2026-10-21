@@ -1,6 +1,7 @@
 """Google config for Cloud."""
 
 import asyncio
+from collections.abc import Collection
 from http import HTTPStatus
 import logging
 from typing import TYPE_CHECKING, Any, override

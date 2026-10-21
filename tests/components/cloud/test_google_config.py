@@ -974,5 +974,5 @@ async def test_google_config_get_agent_users(
     config = CloudGoogleConfig(
         hass, GACTIONS_SCHEMA({}), "mock-user-id", cloud_prefs, mock_cloud
     )
-    assert config.async_get_agent_users() == ["blah",]
+    assert config.async_get_agent_users() == ["blah"]
     username_mock.assert_called()

@@ -1,5 +1,6 @@
 """Support for Android IP Webcam binary sensors."""
 
+import math
 from typing import override
 
 from homeassistant.components.binary_sensor import (
@@ -55,4 +56,5 @@ class IPWebcamBinarySensor(AndroidIPCamBaseEntity, BinarySensorEntity):
     @override
     def is_on(self) -> bool:
         """Return if motion is detected."""
-        return self.cam.get_sensor_value(MOTION_ACTIVE) == 1.0
+        value = self.cam.get_sensor_value(MOTION_ACTIVE)
+        return isinstance(value, (int, float)) and math.isclose(value, 1.0)

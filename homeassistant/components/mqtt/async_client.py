@@ -1,6 +1,5 @@
 """Async wrappings for mqtt client."""
 
-from functools import lru_cache
 from types import TracebackType
 from typing import Self
 
@@ -13,18 +12,14 @@ from paho.mqtt.client import (
     Client as MQTTClient,
 )
 
-_MQTT_LOCK_COUNT = 7
-
 
 class NullLock:
     """Null lock."""
 
-    @lru_cache(maxsize=_MQTT_LOCK_COUNT)
     def __enter__(self) -> Self:
         """Enter the lock."""
         return self
 
-    @lru_cache(maxsize=_MQTT_LOCK_COUNT)
     def __exit__(
         self,
         exc_type: type[BaseException] | None,
@@ -33,11 +28,9 @@ class NullLock:
     ) -> None:
         """Exit the lock."""
 
-    @lru_cache(maxsize=_MQTT_LOCK_COUNT)
     def acquire(self, blocking: bool = False, timeout: int = -1) -> None:
         """Acquire the lock."""
 
-    @lru_cache(maxsize=_MQTT_LOCK_COUNT)
     def release(self) -> None:
         """Release the lock."""
 

@@ -195,7 +195,7 @@ def async_setup_forwarded(
         if forwarded_host_headers:
             # Process multiple X-Forwarded-Host from the right side
             # (by reversing the list)
-            forwarded_host = list(
+            forwarded_host = next(
                 reversed(
                     [
                         addr.strip()
@@ -203,7 +203,7 @@ def async_setup_forwarded(
                         for addr in header.split(",")
                     ]
                 )
-            )[0]
+            )
             if not forwarded_host:
                 _LOGGER.error("Empty value received in X-Forward-Host header")
                 raise HTTPBadRequest

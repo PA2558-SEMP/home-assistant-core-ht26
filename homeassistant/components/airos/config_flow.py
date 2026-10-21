@@ -422,7 +422,8 @@ class AirOSConfigFlow(ConfigFlow, domain=DOMAIN):
                 self.async_update_progress(progress)
                 await asyncio.sleep(1)
         except asyncio.CancelledError:
-            pass
+            _LOGGER.debug("Discovery finished, stopping progress bar updates")
+            raise
 
     @override
     async def async_step_dhcp(
