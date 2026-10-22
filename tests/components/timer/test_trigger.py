@@ -834,6 +834,17 @@ async def test_phase_finished_trigger_filter(hass: HomeAssistant) -> None:
     await hass.async_block_till_done()
     assert len(calls) == 0
 
+    # Transition to phase_started intermediate state
+    hass.states.async_set(
+        "timer.test",
+        STATUS_ACTIVE,
+        {
+            ATTR_LAST_TRANSITION: "phase_started",
+            TimerEntityStateAttribute.CURRENT_PHASE_NAME: "Break",
+        },
+    )
+    await hass.async_block_till_done()
+
     # Transition to phase_finished for Break - should fire
     hass.states.async_set(
         "timer.test",

@@ -86,10 +86,8 @@ STORAGE_FIELDS: VolDictType = {
     vol.Optional(CONF_ICON): cv.icon,
     vol.Optional(CONF_DURATION, default=DEFAULT_DURATION): cv.time_period,
     vol.Optional(CONF_RESTORE, default=DEFAULT_RESTORE): cv.boolean,
-    vol.Optional(CONF_PHASES, default=[]): [PHASE_SCHEMA],
-    vol.Optional(CONF_ITERATIONS, default=DEFAULT_ITERATIONS): vol.All(
-        int, vol.Range(min=0)
-    ),
+    vol.Optional(CONF_PHASES): [PHASE_SCHEMA],
+    vol.Optional(CONF_ITERATIONS): vol.All(int, vol.Range(min=0)),
 }
 
 
