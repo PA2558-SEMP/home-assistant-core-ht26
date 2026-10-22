@@ -17,6 +17,9 @@ from homeassistant.helpers.target import (
 )
 from homeassistant.helpers.trigger import (
     ENTITY_STATE_TRIGGER_SCHEMA,
+    ENTITY_STATE_TRIGGER_SCHEMA_WITH_BEHAVIOR,
+    EntityTargetStateTriggerBase,
+    NotTriggeredReasonReporter,
     Trigger,
     TriggerActionRunner,
     TriggerConfig,
@@ -167,6 +170,79 @@ class TimeRemainingTrigger(Trigger):
         return async_remove
 
 
+CONF_PHASE = "phase"
+
+PHASE_TRIGGER_SCHEMA = ENTITY_STATE_TRIGGER_SCHEMA_WITH_BEHAVIOR.extend(
+    {
+        vol.Required(CONF_OPTIONS, default={}): {
+            vol.Optional(CONF_PHASE): cv.string,
+        },
+    }
+)
+
+
+class PhaseStartedTrigger(EntityTargetStateTriggerBase):
+    """Trigger when a timer phase starts."""
+
+    _domain_specs = {
+        DOMAIN: DomainSpec(value_source=TimerEntityStateAttribute.LAST_TRANSITION)
+    }
+    _to_states = {"phase_started"}
+    _schema = PHASE_TRIGGER_SCHEMA
+
+    def __init__(self, hass: HomeAssistant, config: TriggerConfig) -> None:
+        """Initialize the phase started trigger."""
+        super().__init__(hass, config)
+        self._phase: str | None = self._options.get(CONF_PHASE)
+
+    @override
+    def is_valid_state(
+        self,
+        state: State,
+        report_not_triggered: NotTriggeredReasonReporter,
+    ) -> bool:
+        """Check if the state matches the transition and optional phase."""
+        if not super().is_valid_state(state, report_not_triggered):
+            return False
+        if self._phase is not None:
+            return (
+                state.attributes.get(TimerEntityStateAttribute.CURRENT_PHASE_NAME)
+                == self._phase
+            )
+        return True
+
+
+class PhaseFinishedTrigger(EntityTargetStateTriggerBase):
+    """Trigger when a timer phase finishes."""
+
+    _domain_specs = {
+        DOMAIN: DomainSpec(value_source=TimerEntityStateAttribute.LAST_TRANSITION)
+    }
+    _to_states = {"phase_finished"}
+    _schema = PHASE_TRIGGER_SCHEMA
+
+    def __init__(self, hass: HomeAssistant, config: TriggerConfig) -> None:
+        """Initialize the phase finished trigger."""
+        super().__init__(hass, config)
+        self._phase: str | None = self._options.get(CONF_PHASE)
+
+    @override
+    def is_valid_state(
+        self,
+        state: State,
+        report_not_triggered: NotTriggeredReasonReporter,
+    ) -> bool:
+        """Check if the state matches the transition and optional phase."""
+        if not super().is_valid_state(state, report_not_triggered):
+            return False
+        if self._phase is not None:
+            return (
+                state.attributes.get(TimerEntityStateAttribute.CURRENT_PHASE_NAME)
+                == self._phase
+            )
+        return True
+
+
 TRIGGERS: dict[str, type[Trigger]] = {
     "cancelled": make_entity_target_state_trigger(
         {DOMAIN: DomainSpec(value_source=TimerEntityStateAttribute.LAST_TRANSITION)},
@@ -189,6 +265,8 @@ TRIGGERS: dict[str, type[Trigger]] = {
         "started",
     ),
     "remaining_time_reached": TimeRemainingTrigger,
+    "phase_started": PhaseStartedTrigger,
+    "phase_finished": PhaseFinishedTrigger,
 }
 
 
