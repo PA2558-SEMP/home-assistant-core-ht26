@@ -1567,8 +1567,9 @@ async def test_change_does_not_orphan_the_expiry_callback(
     assert len(expiries) == 1
 
 
-async def test_chain_timer_setup_and_attributes(hass: HomeAssistant) -> None:
-    """Test chain-timer setup via YAML and its initial state attributes."""
+@pytest.fixture
+async def pomodoro_chain_timer(hass: HomeAssistant) -> None:
+    """Set up a two-phase (Work/Break) chain-timer with 2 iterations."""
     assert await async_setup_component(
         hass,
         DOMAIN,
@@ -1585,6 +1586,12 @@ async def test_chain_timer_setup_and_attributes(hass: HomeAssistant) -> None:
             }
         },
     )
+
+
+async def test_chain_timer_setup_and_attributes(
+    pomodoro_chain_timer: None, hass: HomeAssistant
+) -> None:
+    """Test chain-timer setup via YAML and its initial state attributes."""
 
     state = hass.states.get("timer.pomodoro")
     assert state is not None
@@ -1598,26 +1605,9 @@ async def test_chain_timer_setup_and_attributes(hass: HomeAssistant) -> None:
 
 @pytest.mark.freeze_time("2026-10-22 10:00:00")
 async def test_chain_timer_progression(
-    hass: HomeAssistant, freezer: FrozenDateTimeFactory
+    pomodoro_chain_timer: None, hass: HomeAssistant, freezer: FrozenDateTimeFactory
 ) -> None:
     """Test full cycle progression of a chain-timer."""
-    assert await async_setup_component(
-        hass,
-        DOMAIN,
-        {
-            DOMAIN: {
-                "pomodoro": {
-                    CONF_NAME: "Pomodoro",
-                    CONF_ITERATIONS: 2,
-                    CONF_PHASES: [
-                        {CONF_NAME: "Work", CONF_DURATION: "00:00:10"},
-                        {CONF_NAME: "Break", CONF_DURATION: "00:00:05"},
-                    ],
-                }
-            }
-        },
-    )
-
     started_events = async_capture_events(hass, EVENT_TIMER_PHASE_STARTED)
     finished_events = async_capture_events(hass, EVENT_TIMER_PHASE_FINISHED)
     timer_finished_events = async_capture_events(hass, EVENT_TIMER_FINISHED)
@@ -1766,25 +1756,10 @@ async def test_chain_timer_next_phase_service(
     assert len(timer_finished_events) == 1
 
 
-async def test_chain_timer_next_phase_while_paused(hass: HomeAssistant) -> None:
+async def test_chain_timer_next_phase_while_paused(
+    pomodoro_chain_timer: None, hass: HomeAssistant
+) -> None:
     """Test skipping to next phase while paused resumes in the next phase."""
-    assert await async_setup_component(
-        hass,
-        DOMAIN,
-        {
-            DOMAIN: {
-                "pomodoro": {
-                    CONF_NAME: "Pomodoro",
-                    CONF_ITERATIONS: 1,
-                    CONF_PHASES: [
-                        {CONF_NAME: "Work", CONF_DURATION: "00:00:10"},
-                        {CONF_NAME: "Break", CONF_DURATION: "00:00:05"},
-                    ],
-                }
-            }
-        },
-    )
-
     await hass.services.async_call(
         DOMAIN, SERVICE_START, {CONF_ENTITY_ID: "timer.pomodoro"}, blocking=True
     )
@@ -1865,25 +1840,10 @@ async def test_chain_timer_next_phase_no_phases_raises(
         )
 
 
-async def test_chain_timer_cancel_and_finish_reset(hass: HomeAssistant) -> None:
+async def test_chain_timer_cancel_and_finish_reset(
+    pomodoro_chain_timer: None, hass: HomeAssistant
+) -> None:
     """Test cancel and finish services reset chain position."""
-    assert await async_setup_component(
-        hass,
-        DOMAIN,
-        {
-            DOMAIN: {
-                "pomodoro": {
-                    CONF_NAME: "Pomodoro",
-                    CONF_ITERATIONS: 2,
-                    CONF_PHASES: [
-                        {CONF_NAME: "Work", CONF_DURATION: "00:00:10"},
-                        {CONF_NAME: "Break", CONF_DURATION: "00:00:05"},
-                    ],
-                }
-            }
-        },
-    )
-
     # Start and advance to phase 1 ("Break")
     await hass.services.async_call(
         DOMAIN, SERVICE_START, {CONF_ENTITY_ID: "timer.pomodoro"}, blocking=True
