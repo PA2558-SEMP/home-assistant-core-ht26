@@ -18,7 +18,9 @@ from homeassistant.components.timer import (
     ATTR_RESTORE,
     CONF_DURATION,
     CONF_ICON,
+    CONF_ITERATIONS,
     CONF_NAME,
+    CONF_PHASES,
     CONF_RESTORE,
     DEFAULT_DURATION,
     DOMAIN,
@@ -26,17 +28,22 @@ from homeassistant.components.timer import (
     EVENT_TIMER_CHANGED,
     EVENT_TIMER_FINISHED,
     EVENT_TIMER_PAUSED,
+    EVENT_TIMER_PHASE_FINISHED,
+    EVENT_TIMER_PHASE_STARTED,
     EVENT_TIMER_RESTARTED,
     EVENT_TIMER_STARTED,
     SERVICE_CANCEL,
     SERVICE_CHANGE,
     SERVICE_FINISH,
+    SERVICE_NEXT_PHASE,
     SERVICE_PAUSE,
+    SERVICE_SKIP_PHASE,
     SERVICE_START,
     STATUS_ACTIVE,
     STATUS_IDLE,
     STATUS_PAUSED,
     Timer,
+    TimerEntityStateAttribute,
 )
 from homeassistant.const import (
     ATTR_EDITABLE,
@@ -1558,3 +1565,390 @@ async def test_change_does_not_orphan_the_expiry_callback(
         await hass.async_block_till_done()
 
     assert len(expiries) == 1
+
+
+async def test_chain_timer_setup_and_attributes(hass: HomeAssistant) -> None:
+    """Test chain-timer setup via YAML and its initial state attributes."""
+    assert await async_setup_component(
+        hass,
+        DOMAIN,
+        {
+            DOMAIN: {
+                "pomodoro": {
+                    CONF_NAME: "Pomodoro",
+                    CONF_ITERATIONS: 2,
+                    CONF_PHASES: [
+                        {CONF_NAME: "Work", CONF_DURATION: "00:00:10"},
+                        {CONF_NAME: "Break", CONF_DURATION: "00:00:05"},
+                    ],
+                }
+            }
+        },
+    )
+
+    state = hass.states.get("timer.pomodoro")
+    assert state is not None
+    assert state.state == STATUS_IDLE
+    assert state.attributes[ATTR_DURATION] == "0:00:00"
+    assert state.attributes[TimerEntityStateAttribute.CURRENT_PHASE_INDEX] == 0
+    assert state.attributes[TimerEntityStateAttribute.CURRENT_PHASE_NAME] == "Work"
+    assert state.attributes[TimerEntityStateAttribute.CURRENT_CYCLE] == 1
+    assert state.attributes[TimerEntityStateAttribute.TOTAL_CYCLES] == 2
+
+
+@pytest.mark.freeze_time("2026-10-22 10:00:00")
+async def test_chain_timer_progression(
+    hass: HomeAssistant, freezer: FrozenDateTimeFactory
+) -> None:
+    """Test full cycle progression of a chain-timer."""
+    assert await async_setup_component(
+        hass,
+        DOMAIN,
+        {
+            DOMAIN: {
+                "pomodoro": {
+                    CONF_NAME: "Pomodoro",
+                    CONF_ITERATIONS: 2,
+                    CONF_PHASES: [
+                        {CONF_NAME: "Work", CONF_DURATION: "00:00:10"},
+                        {CONF_NAME: "Break", CONF_DURATION: "00:00:05"},
+                    ],
+                }
+            }
+        },
+    )
+
+    started_events = async_capture_events(hass, EVENT_TIMER_PHASE_STARTED)
+    finished_events = async_capture_events(hass, EVENT_TIMER_PHASE_FINISHED)
+    timer_finished_events = async_capture_events(hass, EVENT_TIMER_FINISHED)
+
+    await hass.services.async_call(
+        DOMAIN, SERVICE_START, {CONF_ENTITY_ID: "timer.pomodoro"}, blocking=True
+    )
+    await hass.async_block_till_done()
+
+    state = hass.states.get("timer.pomodoro")
+    assert state is not None
+    assert state.state == STATUS_ACTIVE
+    assert state.attributes[ATTR_DURATION] == "0:00:10"
+    assert state.attributes[TimerEntityStateAttribute.CURRENT_PHASE_INDEX] == 0
+    assert state.attributes[TimerEntityStateAttribute.CURRENT_PHASE_NAME] == "Work"
+    assert state.attributes[TimerEntityStateAttribute.CURRENT_CYCLE] == 1
+    assert len(started_events) == 1
+    assert started_events[0].data["phase_name"] == "Work"
+    assert started_events[0].data["cycle"] == 1
+
+    # Complete phase 0 ("Work", 10s)
+    freezer.tick(10)
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+
+    state = hass.states.get("timer.pomodoro")
+    assert state is not None
+    assert state.state == STATUS_ACTIVE
+    assert state.attributes[ATTR_DURATION] == "0:00:05"
+    assert state.attributes[TimerEntityStateAttribute.CURRENT_PHASE_INDEX] == 1
+    assert state.attributes[TimerEntityStateAttribute.CURRENT_PHASE_NAME] == "Break"
+    assert state.attributes[TimerEntityStateAttribute.CURRENT_CYCLE] == 1
+    assert len(finished_events) == 1
+    assert finished_events[0].data["phase_name"] == "Work"
+    assert len(started_events) == 2
+    assert started_events[1].data["phase_name"] == "Break"
+
+    # Complete phase 1 ("Break", 5s) -> transitions to cycle 2, phase 0 ("Work")
+    freezer.tick(5)
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+
+    state = hass.states.get("timer.pomodoro")
+    assert state is not None
+    assert state.state == STATUS_ACTIVE
+    assert state.attributes[ATTR_DURATION] == "0:00:10"
+    assert state.attributes[TimerEntityStateAttribute.CURRENT_PHASE_INDEX] == 0
+    assert state.attributes[TimerEntityStateAttribute.CURRENT_PHASE_NAME] == "Work"
+    assert state.attributes[TimerEntityStateAttribute.CURRENT_CYCLE] == 2
+    assert len(finished_events) == 2
+    assert finished_events[1].data["phase_name"] == "Break"
+    assert len(started_events) == 3
+    assert started_events[2].data["phase_name"] == "Work"
+    assert started_events[2].data["cycle"] == 2
+
+    # Complete cycle 2 phase 0 ("Work", 10s) -> transitions to cycle 2 phase 1 ("Break")
+    freezer.tick(10)
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+
+    state = hass.states.get("timer.pomodoro")
+    assert state is not None
+    assert state.state == STATUS_ACTIVE
+    assert state.attributes[ATTR_DURATION] == "0:00:05"
+    assert state.attributes[TimerEntityStateAttribute.CURRENT_PHASE_INDEX] == 1
+    assert state.attributes[TimerEntityStateAttribute.CURRENT_PHASE_NAME] == "Break"
+    assert state.attributes[TimerEntityStateAttribute.CURRENT_CYCLE] == 2
+
+    # Complete cycle 2 phase 1 ("Break", 5s) -> all cycles done, timer finishes
+    freezer.tick(5)
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+
+    state = hass.states.get("timer.pomodoro")
+    assert state is not None
+    assert state.state == STATUS_IDLE
+    assert state.attributes[TimerEntityStateAttribute.CURRENT_PHASE_INDEX] == 0
+    assert state.attributes[TimerEntityStateAttribute.CURRENT_CYCLE] == 1
+    assert len(finished_events) == 4
+    assert len(timer_finished_events) == 1
+
+
+@pytest.mark.parametrize("service", [SERVICE_NEXT_PHASE, SERVICE_SKIP_PHASE])
+async def test_chain_timer_next_phase_service(
+    hass: HomeAssistant, service: str
+) -> None:
+    """Test skipping phases using next_phase and skip_phase services."""
+    assert await async_setup_component(
+        hass,
+        DOMAIN,
+        {
+            DOMAIN: {
+                "pomodoro": {
+                    CONF_NAME: "Pomodoro",
+                    CONF_ITERATIONS: 1,
+                    CONF_PHASES: [
+                        {CONF_NAME: "Work", CONF_DURATION: "00:00:10"},
+                        {CONF_NAME: "Break", CONF_DURATION: "00:00:05"},
+                    ],
+                }
+            }
+        },
+    )
+
+    started_events = async_capture_events(hass, EVENT_TIMER_PHASE_STARTED)
+    finished_events = async_capture_events(hass, EVENT_TIMER_PHASE_FINISHED)
+    timer_finished_events = async_capture_events(hass, EVENT_TIMER_FINISHED)
+
+    await hass.services.async_call(
+        DOMAIN, SERVICE_START, {CONF_ENTITY_ID: "timer.pomodoro"}, blocking=True
+    )
+    await hass.async_block_till_done()
+
+    state = hass.states.get("timer.pomodoro")
+    assert state is not None
+    assert state.state == STATUS_ACTIVE
+    assert len(started_events) == 1
+
+    # Skip to next phase
+    await hass.services.async_call(
+        DOMAIN, service, {CONF_ENTITY_ID: "timer.pomodoro"}, blocking=True
+    )
+    await hass.async_block_till_done()
+
+    state = hass.states.get("timer.pomodoro")
+    assert state is not None
+    assert state.state == STATUS_ACTIVE
+    assert state.attributes[TimerEntityStateAttribute.CURRENT_PHASE_NAME] == "Break"
+    assert state.attributes[TimerEntityStateAttribute.CURRENT_PHASE_INDEX] == 1
+    assert len(finished_events) == 1
+    assert finished_events[0].data["phase_name"] == "Work"
+    assert len(started_events) == 2
+    assert started_events[1].data["phase_name"] == "Break"
+
+    # Skip last phase -> timer finishes
+    await hass.services.async_call(
+        DOMAIN, service, {CONF_ENTITY_ID: "timer.pomodoro"}, blocking=True
+    )
+    await hass.async_block_till_done()
+
+    state = hass.states.get("timer.pomodoro")
+    assert state is not None
+    assert state.state == STATUS_IDLE
+    assert len(finished_events) == 2
+    assert finished_events[1].data["phase_name"] == "Break"
+    assert len(timer_finished_events) == 1
+
+
+async def test_chain_timer_next_phase_while_paused(hass: HomeAssistant) -> None:
+    """Test skipping to next phase while paused resumes in the next phase."""
+    assert await async_setup_component(
+        hass,
+        DOMAIN,
+        {
+            DOMAIN: {
+                "pomodoro": {
+                    CONF_NAME: "Pomodoro",
+                    CONF_ITERATIONS: 1,
+                    CONF_PHASES: [
+                        {CONF_NAME: "Work", CONF_DURATION: "00:00:10"},
+                        {CONF_NAME: "Break", CONF_DURATION: "00:00:05"},
+                    ],
+                }
+            }
+        },
+    )
+
+    await hass.services.async_call(
+        DOMAIN, SERVICE_START, {CONF_ENTITY_ID: "timer.pomodoro"}, blocking=True
+    )
+    await hass.services.async_call(
+        DOMAIN, SERVICE_PAUSE, {CONF_ENTITY_ID: "timer.pomodoro"}, blocking=True
+    )
+    await hass.async_block_till_done()
+
+    state = hass.states.get("timer.pomodoro")
+    assert state is not None
+    assert state.state == STATUS_PAUSED
+
+    await hass.services.async_call(
+        DOMAIN, SERVICE_NEXT_PHASE, {CONF_ENTITY_ID: "timer.pomodoro"}, blocking=True
+    )
+    await hass.async_block_till_done()
+
+    state = hass.states.get("timer.pomodoro")
+    assert state is not None
+    assert state.state == STATUS_ACTIVE
+    assert state.attributes[TimerEntityStateAttribute.CURRENT_PHASE_NAME] == "Break"
+
+
+async def test_chain_timer_next_phase_idle_raises(hass: HomeAssistant) -> None:
+    """Test calling next_phase on an idle chain timer raises HomeAssistantError."""
+    assert await async_setup_component(
+        hass,
+        DOMAIN,
+        {
+            DOMAIN: {
+                "pomodoro": {
+                    CONF_NAME: "Pomodoro",
+                    CONF_PHASES: [
+                        {CONF_NAME: "Work", CONF_DURATION: "00:00:10"},
+                    ],
+                }
+            }
+        },
+    )
+
+    with pytest.raises(HomeAssistantError, match="is not running"):
+        await hass.services.async_call(
+            DOMAIN,
+            SERVICE_NEXT_PHASE,
+            {CONF_ENTITY_ID: "timer.pomodoro"},
+            blocking=True,
+        )
+
+
+async def test_chain_timer_next_phase_no_phases_raises(
+    hass: HomeAssistant,
+) -> None:
+    """Test calling next_phase on a non-chain timer raises HomeAssistantError."""
+    assert await async_setup_component(
+        hass,
+        DOMAIN,
+        {
+            DOMAIN: {
+                "simple": {
+                    CONF_NAME: "Simple",
+                    CONF_DURATION: "00:00:10",
+                }
+            }
+        },
+    )
+
+    await hass.services.async_call(
+        DOMAIN, SERVICE_START, {CONF_ENTITY_ID: "timer.simple"}, blocking=True
+    )
+    await hass.async_block_till_done()
+
+    with pytest.raises(HomeAssistantError, match="does not have phases configured"):
+        await hass.services.async_call(
+            DOMAIN,
+            SERVICE_NEXT_PHASE,
+            {CONF_ENTITY_ID: "timer.simple"},
+            blocking=True,
+        )
+
+
+async def test_chain_timer_cancel_and_finish_reset(hass: HomeAssistant) -> None:
+    """Test cancel and finish services reset chain position."""
+    assert await async_setup_component(
+        hass,
+        DOMAIN,
+        {
+            DOMAIN: {
+                "pomodoro": {
+                    CONF_NAME: "Pomodoro",
+                    CONF_ITERATIONS: 2,
+                    CONF_PHASES: [
+                        {CONF_NAME: "Work", CONF_DURATION: "00:00:10"},
+                        {CONF_NAME: "Break", CONF_DURATION: "00:00:05"},
+                    ],
+                }
+            }
+        },
+    )
+
+    # Start and advance to phase 1 ("Break")
+    await hass.services.async_call(
+        DOMAIN, SERVICE_START, {CONF_ENTITY_ID: "timer.pomodoro"}, blocking=True
+    )
+    await hass.services.async_call(
+        DOMAIN, SERVICE_NEXT_PHASE, {CONF_ENTITY_ID: "timer.pomodoro"}, blocking=True
+    )
+    await hass.async_block_till_done()
+
+    state = hass.states.get("timer.pomodoro")
+    assert state is not None
+    assert state.attributes[TimerEntityStateAttribute.CURRENT_PHASE_INDEX] == 1
+
+    # Cancel resets to phase 0 and cycle 1
+    await hass.services.async_call(
+        DOMAIN, SERVICE_CANCEL, {CONF_ENTITY_ID: "timer.pomodoro"}, blocking=True
+    )
+    await hass.async_block_till_done()
+
+    state = hass.states.get("timer.pomodoro")
+    assert state is not None
+    assert state.state == STATUS_IDLE
+    assert state.attributes[TimerEntityStateAttribute.CURRENT_PHASE_INDEX] == 0
+    assert state.attributes[TimerEntityStateAttribute.CURRENT_CYCLE] == 1
+
+    # Restart and advance to phase 1 ("Break")
+    await hass.services.async_call(
+        DOMAIN, SERVICE_START, {CONF_ENTITY_ID: "timer.pomodoro"}, blocking=True
+    )
+    await hass.services.async_call(
+        DOMAIN, SERVICE_NEXT_PHASE, {CONF_ENTITY_ID: "timer.pomodoro"}, blocking=True
+    )
+    await hass.async_block_till_done()
+
+    # Finish terminates the entire timer and resets position
+    await hass.services.async_call(
+        DOMAIN, SERVICE_FINISH, {CONF_ENTITY_ID: "timer.pomodoro"}, blocking=True
+    )
+    await hass.async_block_till_done()
+
+    state = hass.states.get("timer.pomodoro")
+    assert state is not None
+    assert state.state == STATUS_IDLE
+    assert state.attributes[TimerEntityStateAttribute.CURRENT_PHASE_INDEX] == 0
+    assert state.attributes[TimerEntityStateAttribute.CURRENT_CYCLE] == 1
+
+
+async def test_chain_timer_storage(
+    hass: HomeAssistant, storage_setup: Any
+) -> None:
+    """Test creating and loading a chain timer from storage."""
+    item = {
+        CONF_ID: "pomodoro_storage",
+        CONF_NAME: "Storage Pomodoro",
+        CONF_DURATION: "0:00:00",
+        CONF_RESTORE: False,
+        CONF_ITERATIONS: 3,
+        CONF_PHASES: [
+            {CONF_NAME: "Work", CONF_DURATION: "0:25:00"},
+            {CONF_NAME: "Short Break", CONF_DURATION: "0:05:00"},
+        ],
+    }
+    assert await storage_setup([item])
+
+    state = hass.states.get("timer.pomodoro_storage")
+    assert state is not None
+    assert state.attributes[TimerEntityStateAttribute.CURRENT_PHASE_NAME] == "Work"
+    assert state.attributes[TimerEntityStateAttribute.TOTAL_CYCLES] == 3
