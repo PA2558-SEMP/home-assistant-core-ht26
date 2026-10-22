@@ -1948,7 +1948,7 @@ async def test_chain_timer_storage(
     }
     assert await storage_setup([item])
 
-    state = hass.states.get(f"{DOMAIN}.{DOMAIN}_pomodoro_storage")
+    state = hass.states.get(f"{DOMAIN}.storage_pomodoro")
     assert state is not None
     assert state.attributes[TimerEntityStateAttribute.CURRENT_PHASE_NAME] == "Work"
     assert state.attributes[TimerEntityStateAttribute.TOTAL_CYCLES] == 3
