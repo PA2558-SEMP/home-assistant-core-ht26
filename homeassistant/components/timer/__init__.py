@@ -77,6 +77,8 @@ SERVICE_PAUSE = "pause"
 SERVICE_CANCEL = "cancel"
 SERVICE_CHANGE = "change"
 SERVICE_FINISH = "finish"
+SERVICE_NEXT_PHASE = "next_phase"
+SERVICE_SKIP_PHASE = "skip_phase"
 
 STORAGE_KEY = DOMAIN
 STORAGE_VERSION = 1
@@ -194,6 +196,12 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         SERVICE_CHANGE,
         {vol.Optional(ATTR_DURATION, default=DEFAULT_DURATION): cv.time_period},
         "async_change",
+    )
+    component.async_register_entity_service(
+        SERVICE_NEXT_PHASE, None, "async_next_phase"
+    )
+    component.async_register_entity_service(
+        SERVICE_SKIP_PHASE, None, "async_next_phase"
     )
 
     return True
@@ -483,6 +491,35 @@ class Timer(collection.CollectionEntity, RestoreEntity):
         """Reset and updates the states, fire finished event."""
         if self._state == STATUS_IDLE:
             return
+
+        if self._listener:
+            self._listener()
+            self._listener = None
+        end = self._end
+        if end is None:
+            end = dt_util.utcnow().replace(microsecond=0)
+        self._end = None
+        self._remaining = None
+        self._running_duration = self._configured_duration
+        self._current_phase_idx = 0
+        self._current_cycle = 1
+        self._state = STATUS_IDLE
+        self._fire_event_and_write_state(
+            EVENT_TIMER_FINISHED, extra_attrs={ATTR_FINISHED_AT: end.isoformat()}
+        )
+
+    @callback
+    def async_next_phase(self) -> None:
+        """Skip to the next phase of a chain-timer."""
+        if self._state == STATUS_IDLE:
+            raise HomeAssistantError(
+                f"Timer {self.entity_id} is not running, only active or paused timers can skip to the next phase"
+            )
+
+        if not self._phases:
+            raise HomeAssistantError(
+                f"Timer {self.entity_id} does not have phases configured"
+            )
 
         if self._listener:
             self._listener()

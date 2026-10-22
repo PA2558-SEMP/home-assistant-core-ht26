@@ -117,6 +117,14 @@
       "description": "Finishes a running timer earlier than scheduled.",
       "name": "Finish timer"
     },
+    "next_phase": {
+      "description": "Skips to the next phase of a running chain-timer.",
+      "name": "Next phase"
+    },
+    "skip_phase": {
+      "description": "Skips to the next phase of a running chain-timer.",
+      "name": "Skip phase"
+    },
     "pause": {
       "description": "Pauses a running timer, retaining the remaining duration for later continuation.",
       "name": "Pause timer"
