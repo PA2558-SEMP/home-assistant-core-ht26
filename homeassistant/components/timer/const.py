@@ -18,7 +18,3 @@ class TimerEntityStateAttribute(StrEnum):
     CURRENT_CYCLE = "current_cycle"
     TOTAL_CYCLES = "total_cycles"
 
-
-# Events fired at each phase boundary of a chain-timer.
-EVENT_TIMER_PHASE_STARTED = "timer.phase_started"
-EVENT_TIMER_PHASE_FINISHED = "timer.phase_finished"

@@ -26,11 +26,7 @@ from homeassistant.helpers.storage import Store
 from homeassistant.helpers.typing import ConfigType, VolDictType
 from homeassistant.util import dt as dt_util
 
-from .const import (
-    EVENT_TIMER_PHASE_FINISHED,
-    EVENT_TIMER_PHASE_STARTED,
-    TimerEntityStateAttribute,
-)
+from .const import TimerEntityStateAttribute
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -71,6 +67,8 @@ EVENT_TIMER_CHANGED = "timer.changed"
 EVENT_TIMER_STARTED = "timer.started"
 EVENT_TIMER_RESTARTED = "timer.restarted"
 EVENT_TIMER_PAUSED = "timer.paused"
+EVENT_TIMER_PHASE_STARTED = "timer.phase_started"
+EVENT_TIMER_PHASE_FINISHED = "timer.phase_finished"
 
 SERVICE_START = "start"
 SERVICE_PAUSE = "pause"
