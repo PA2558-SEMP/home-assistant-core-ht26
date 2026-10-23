@@ -80,6 +80,9 @@ from .const import (
     CONF_MIN_TEMP,
     CONF_PRESETS,
     CONF_SENSOR,
+    CONF_WINDOW_CLOSE_DELAY,
+    CONF_WINDOW_OPEN_DELAY,
+    CONF_WINDOW_SENSOR,
     DEFAULT_TOLERANCE,
     DOMAIN,
     PLATFORMS,
@@ -125,6 +128,9 @@ PLATFORM_SCHEMA_COMMON = vol.Schema(
             vol.In([PRECISION_TENTHS, PRECISION_HALVES, PRECISION_WHOLE])
         ),
         vol.Optional(CONF_UNIQUE_ID): cv.string,
+        vol.Optional(CONF_WINDOW_SENSOR): cv.entity_id,
+        vol.Optional(CONF_WINDOW_OPEN_DELAY): cv.positive_time_period,
+        vol.Optional(CONF_WINDOW_CLOSE_DELAY): cv.positive_time_period,
         **PRESETS_SCHEMA,
     }
 )
@@ -190,6 +196,9 @@ async def _async_setup_config(
     }
     precision: float | None = config.get(CONF_PRECISION)
     target_temperature_step: float | None = config.get(CONF_TEMP_STEP)
+    window_sensor_entity_id: str | None = config.get(CONF_WINDOW_SENSOR)
+    window_open_delay: timedelta | None = config.get(CONF_WINDOW_OPEN_DELAY)
+    window_close_delay: timedelta | None = config.get(CONF_WINDOW_CLOSE_DELAY)
     unit = hass.config.units.temperature_unit
 
     async_add_entities(
@@ -215,6 +224,9 @@ async def _async_setup_config(
                 unit=unit,
                 unique_id=unique_id,
                 device=device,
+                window_sensor_entity_id=window_sensor_entity_id,
+                window_open_delay=window_open_delay,
+                window_close_delay=window_close_delay,
             )
         ]
     )
@@ -248,6 +260,9 @@ class GenericThermostat(ClimateEntity, RestoreEntity):
         unit: UnitOfTemperature,
         unique_id: str | None,
         device: AnyDeviceEntry | None = None,
+        window_sensor_entity_id: str | None = None,
+        window_open_delay: timedelta | None = None,
+        window_close_delay: timedelta | None = None,
     ) -> None:
         """Initialize the thermostat."""
         self._attr_name = name
@@ -263,6 +278,12 @@ class GenericThermostat(ClimateEntity, RestoreEntity):
         self._last_toggled_time = dt_util.utcnow() - self.cycle_cooldown
         self._cycle_callback: CALLBACK_TYPE | None = None
         self._check_callback: CALLBACK_TYPE | None = None
+        self._window_sensor_entity_id = window_sensor_entity_id
+        self._window_open_delay = window_open_delay
+        self._window_close_delay = window_close_delay
+        self._window_timer: CALLBACK_TYPE | None = None
+        self._is_window_open = False
+        self._is_window_paused = False
         # Context ID used to detect our own toggles
         self._last_context_id: str | None = None
         self._hot_tolerance = hot_tolerance
@@ -314,6 +335,15 @@ class GenericThermostat(ClimateEntity, RestoreEntity):
             )
         )
         self.async_on_remove(self._cancel_timers)
+        if self._window_sensor_entity_id:
+            self.async_on_remove(
+                async_track_state_change_event(
+                    self.hass,
+                    [self._window_sensor_entity_id],
+                    self._async_window_changed,
+                )
+            )
+            self.async_on_remove(self._cancel_window_timer)
 
         if self._keep_alive:
             self.async_on_remove(
@@ -340,6 +370,25 @@ class GenericThermostat(ClimateEntity, RestoreEntity):
                 self.hass.async_create_task(
                     self._check_switch_initial_state(), eager_start=True
                 )
+            if self._window_sensor_entity_id:
+                window_state = self.hass.states.get(self._window_sensor_entity_id)
+                if window_state and window_state.state not in (
+                    STATE_UNAVAILABLE,
+                    STATE_UNKNOWN,
+                ):
+                    self._is_window_open = window_state.state == STATE_ON
+                    if self._is_window_open:
+                        if self._window_open_delay:
+                            self._window_timer = async_call_later(
+                                self.hass,
+                                self._window_open_delay,
+                                self._async_window_pause_timer,
+                            )
+                        else:
+                            self.hass.async_create_task(
+                                self._async_window_pause(), eager_start=True
+                            )
+                    self.async_write_ha_state()
 
         if self.hass.state is CoreState.running:
             _async_startup()
@@ -396,6 +445,17 @@ class GenericThermostat(ClimateEntity, RestoreEntity):
         # Set default state to off
         if not self._hvac_mode:
             self._hvac_mode = HVACMode.OFF
+
+    @property
+    @override
+    def extra_state_attributes(self) -> Mapping[str, Any] | None:
+        """Return device state attributes."""
+        if self._window_sensor_entity_id is None:
+            return super().extra_state_attributes
+        attrs: dict[str, Any] = dict(super().extra_state_attributes or {})
+        attrs["window_open"] = self._is_window_open
+        attrs["window_paused"] = self._is_window_paused
+        return attrs
 
     @property
     @override
@@ -582,6 +642,9 @@ class GenericThermostat(ClimateEntity, RestoreEntity):
             if not self._active or self._hvac_mode == HVACMode.OFF:
                 return
 
+            if self._is_window_paused:
+                return
+
             if force and called_by_timer and self.max_cycle_duration:
                 # We were invoked due to `max_cycle_duration`, so turn off
                 _LOGGER.debug(
@@ -762,3 +825,81 @@ class GenericThermostat(ClimateEntity, RestoreEntity):
         """Reset timers."""
         self._cancel_check_timer()
         self._cancel_cycle_timer()
+
+    async def _async_window_changed(self, event: Event[EventStateChangedData]) -> None:
+        """Handle window sensor state changes."""
+        new_state = event.data["new_state"]
+        if new_state is None:
+            return
+        if new_state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN):
+            self._cancel_window_timer()
+            return
+
+        is_open = new_state.state == STATE_ON
+        if is_open == self._is_window_open:
+            return
+
+        self.async_set_context(event.context)
+        self._is_window_open = is_open
+        self._cancel_window_timer()
+
+        if is_open:
+            if self._is_window_paused:
+                self.async_write_ha_state()
+                return
+            if self._window_open_delay:
+                self._window_timer = async_call_later(
+                    self.hass,
+                    self._window_open_delay,
+                    self._async_window_pause_timer,
+                )
+            else:
+                await self._async_window_pause()
+        else:
+            if not self._is_window_paused:
+                self.async_write_ha_state()
+                return
+            if self._window_close_delay:
+                self._window_timer = async_call_later(
+                    self.hass,
+                    self._window_close_delay,
+                    self._async_window_resume_timer,
+                )
+            else:
+                await self._async_window_resume()
+
+        self.async_write_ha_state()
+
+    async def _async_window_pause_timer(self, _time: datetime | None = None) -> None:
+        """Pause heating after open delay."""
+        self._window_timer = None
+        if self._is_window_open and not self._is_window_paused:
+            await self._async_window_pause()
+            self.async_write_ha_state()
+
+    async def _async_window_resume_timer(self, _time: datetime | None = None) -> None:
+        """Resume heating after close delay."""
+        self._window_timer = None
+        if not self._is_window_open and self._is_window_paused:
+            await self._async_window_resume()
+            self.async_write_ha_state()
+
+    async def _async_window_pause(self) -> None:
+        """Pause thermostat operation due to open window."""
+        _LOGGER.info("Pausing %s: window sensor opened", self.name)
+        self._is_window_paused = True
+        if self._is_device_active:
+            await self._async_heater_turn_off()
+
+    async def _async_window_resume(self) -> None:
+        """Resume thermostat operation after window is closed."""
+        _LOGGER.info("Resuming %s: window sensor closed", self.name)
+        self._is_window_paused = False
+        await self._async_control_heating()
+
+    @callback
+    def _cancel_window_timer(self) -> None:
+        """Reset window timer."""
+        if self._window_timer:
+            self._window_timer()
+            self._window_timer = None

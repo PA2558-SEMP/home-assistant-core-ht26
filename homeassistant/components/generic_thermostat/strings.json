@@ -28,7 +28,10 @@
           "min_cycle_duration": "Minimum run time",
           "min_temp": "Minimum target temperature",
           "name": "[%key:common::config_flow::data::name%]",
-          "target_sensor": "Temperature sensor"
+          "target_sensor": "Temperature sensor",
+          "window_close_delay": "Window close resume delay",
+          "window_open_delay": "Window open pause delay",
+          "window_sensor": "Window sensor"
         },
         "data_description": {
           "ac_mode": "Set the actuator specified to be treated as a cooling device instead of a heating device.",
@@ -39,7 +42,10 @@
           "keep_alive": "Trigger the heater periodically to keep devices from losing state.",
           "max_cycle_duration": "Once switched on, the maximum amount of time that can elapse before it will be switched off.",
           "min_cycle_duration": "Once switched on, the minimum amount of time that must elapse before it may be switched off.",
-          "target_sensor": "Temperature sensor that reflects the current temperature."
+          "target_sensor": "Temperature sensor that reflects the current temperature.",
+          "window_close_delay": "Duration to wait after window closes before resuming heating.",
+          "window_open_delay": "Duration to wait after window opens before pausing heating.",
+          "window_sensor": "Optional contact sensor that pauses heating when opened."
         },
         "description": "Create a climate entity that controls the temperature via a switch and sensor.",
         "title": "Create generic thermostat"
@@ -63,7 +69,10 @@
           "max_temp": "[%key:component::generic_thermostat::config::step::user::data::max_temp%]",
           "min_cycle_duration": "[%key:component::generic_thermostat::config::step::user::data::min_cycle_duration%]",
           "min_temp": "[%key:component::generic_thermostat::config::step::user::data::min_temp%]",
-          "target_sensor": "[%key:component::generic_thermostat::config::step::user::data::target_sensor%]"
+          "target_sensor": "[%key:component::generic_thermostat::config::step::user::data::target_sensor%]",
+          "window_close_delay": "[%key:component::generic_thermostat::config::step::user::data::window_close_delay%]",
+          "window_open_delay": "[%key:component::generic_thermostat::config::step::user::data::window_open_delay%]",
+          "window_sensor": "[%key:component::generic_thermostat::config::step::user::data::window_sensor%]"
         },
         "data_description": {
           "ac_mode": "[%key:component::generic_thermostat::config::step::user::data_description::ac_mode%]",
@@ -74,7 +83,10 @@
           "keep_alive": "[%key:component::generic_thermostat::config::step::user::data_description::keep_alive%]",
           "max_cycle_duration": "[%key:component::generic_thermostat::config::step::user::data_description::max_cycle_duration%]",
           "min_cycle_duration": "[%key:component::generic_thermostat::config::step::user::data_description::min_cycle_duration%]",
-          "target_sensor": "[%key:component::generic_thermostat::config::step::user::data_description::target_sensor%]"
+          "target_sensor": "[%key:component::generic_thermostat::config::step::user::data_description::target_sensor%]",
+          "window_close_delay": "[%key:component::generic_thermostat::config::step::user::data_description::window_close_delay%]",
+          "window_open_delay": "[%key:component::generic_thermostat::config::step::user::data_description::window_open_delay%]",
+          "window_sensor": "[%key:component::generic_thermostat::config::step::user::data_description::window_sensor%]"
         }
       },
       "presets": {
