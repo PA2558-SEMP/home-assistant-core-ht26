@@ -138,17 +138,46 @@
           "real_name": { "name": "Real name" }
         }
       },
+      "achievements": {
+        "name": "Achievements: {game}"
+      },
+      "badges": {
+        "name": "Badges"
+      },
+      "friends_online": {
+        "name": "Friends online"
+      },
+      "friends_playing": {
+        "name": "Friends playing"
+      },
+      "games_owned": {
+        "name": "Games owned"
+      },
       "last_online": {
         "name": "Last online"
       },
       "level": {
         "name": "Level"
       },
+      "news": {
+        "name": "Latest news",
+        "state_attributes": {
+          "date": { "name": "Date" },
+          "preview": { "name": "Preview" },
+          "url": { "name": "URL" }
+        }
+      },
       "now_playing": {
         "name": "Now playing",
         "state_attributes": {
           "app_id": { "name": "Steam App ID" }
         }
+      },
+      "total_playtime": {
+        "name": "Total playtime"
+      },
+      "xp": {
+        "name": "XP"
       }
     }
   },

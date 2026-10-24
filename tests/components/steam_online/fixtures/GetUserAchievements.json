@@ -1,0 +1,25 @@
+{
+  "response": {
+    "achievements": [
+      {
+        "internal_key": 101,
+        "unlock_time": 1710000000,
+        "unlocked": true
+      },
+      {
+        "internal_key": 102,
+        "unlock_time": 0,
+        "unlocked": false
+      },
+      {
+        "internal_key": 103,
+        "progress_int": 50
+      },
+      {
+        "internal_key": 104,
+        "unlock_time": 1710000001,
+        "unlocked": true
+      }
+    ]
+  }
+}
