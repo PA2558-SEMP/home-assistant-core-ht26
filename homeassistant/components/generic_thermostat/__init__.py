@@ -12,7 +12,14 @@ from homeassistant.helpers.helper_integration import (
     async_remove_helper_devices,
 )
 
-from .const import CONF_DUR_COOLDOWN, CONF_HEATER, CONF_MIN_DUR, CONF_SENSOR, PLATFORMS
+from .const import (
+    CONF_DUR_COOLDOWN,
+    CONF_HEATER,
+    CONF_MIN_DUR,
+    CONF_SENSOR,
+    CONF_WINDOW_SENSOR,
+    PLATFORMS,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -64,6 +71,31 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             hass, entry.options[CONF_SENSOR], async_sensor_updated
         )
     )
+
+    if CONF_WINDOW_SENSOR in entry.options:
+
+        async def async_window_sensor_updated(
+            event: Event[er.EventEntityRegistryUpdatedData],
+        ) -> None:
+            """Handle window sensor entity registry update."""
+            data = event.data
+            if data["action"] != "update":
+                return
+            if "entity_id" not in data["changes"]:
+                return
+
+            # Entity_id changed, update the config entry
+            hass.config_entries.async_update_entry(
+                entry,
+                options={**entry.options, CONF_WINDOW_SENSOR: data["entity_id"]},
+            )
+            hass.config_entries.async_schedule_reload(entry.entry_id)
+
+        entry.async_on_unload(
+            async_track_entity_registry_updated_event(
+                hass, entry.options[CONF_WINDOW_SENSOR], async_window_sensor_updated
+            )
+        )
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True

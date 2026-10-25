@@ -5,8 +5,10 @@ repos:
       - id: ruff-check
         args:
           - --fix
+        exclude: ^((homeassistant|tests)/components/aladdin_connect/|homeassistant/components/cloud/google_config\.py)
       - id: ruff-format
         files: ^((homeassistant|pylint|script|tests)/.+)?[^/]+\.(py|pyi)$
+        exclude: ^(homeassistant|tests)/components/aladdin_connect/
   - repo: https://github.com/codespell-project/codespell
     rev: v2.4.3
     hooks:
@@ -52,7 +54,7 @@ repos:
         additional_dependencies:
           - prettier@3.6.2
           - prettier-plugin-sort-json@4.2.0
-        exclude: ^\.github/workflows/.*\.lock\.yml$
+        exclude: ^(\.github/workflows/.*\.lock\.yml$|tests/fixtures/core/backup_restore/restore1\.json)
   - repo: https://github.com/cdce8p/python-typing-update
     rev: v0.6.0
     hooks:

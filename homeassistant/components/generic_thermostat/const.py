@@ -36,4 +36,7 @@ CONF_PRESETS = {
 }
 CONF_SENSOR = "target_sensor"
 CONF_KEEP_ALIVE = "keep_alive"
+CONF_WINDOW_SENSOR = "window_sensor"
+CONF_WINDOW_OPEN_DELAY = "window_open_delay"
+CONF_WINDOW_CLOSE_DELAY = "window_close_delay"
 DEFAULT_TOLERANCE = 0.3

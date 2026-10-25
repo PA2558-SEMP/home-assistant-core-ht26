@@ -6,7 +6,8 @@ from typing import Any, cast, override
 
 import voluptuous as vol
 
-from homeassistant.components import fan, switch
+from homeassistant.components import binary_sensor, fan, switch
+from homeassistant.components.binary_sensor import BinarySensorDeviceClass
 from homeassistant.components.sensor import DOMAIN as SENSOR_DOMAIN, SensorDeviceClass
 from homeassistant.const import CONF_NAME, DEGREE
 from homeassistant.helpers import selector
@@ -30,6 +31,9 @@ from .const import (
     CONF_MIN_TEMP,
     CONF_PRESETS,
     CONF_SENSOR,
+    CONF_WINDOW_CLOSE_DELAY,
+    CONF_WINDOW_OPEN_DELAY,
+    CONF_WINDOW_SENSOR,
     DEFAULT_TOLERANCE,
     DOMAIN,
 )
@@ -81,6 +85,22 @@ OPTIONS_SCHEMA = {
         selector.NumberSelectorConfig(
             mode=selector.NumberSelectorMode.BOX, unit_of_measurement=DEGREE, step=0.1
         )
+    ),
+    vol.Optional(CONF_WINDOW_SENSOR): selector.EntitySelector(
+        selector.EntitySelectorConfig(
+            domain=binary_sensor.DOMAIN,
+            device_class=[
+                BinarySensorDeviceClass.WINDOW,
+                BinarySensorDeviceClass.DOOR,
+                BinarySensorDeviceClass.OPENING,
+            ],
+        )
+    ),
+    vol.Optional(CONF_WINDOW_OPEN_DELAY): selector.DurationSelector(
+        selector.DurationSelectorConfig(allow_negative=False)
+    ),
+    vol.Optional(CONF_WINDOW_CLOSE_DELAY): selector.DurationSelector(
+        selector.DurationSelectorConfig(allow_negative=False)
     ),
 }
 

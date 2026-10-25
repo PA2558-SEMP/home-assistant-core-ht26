@@ -18,6 +18,9 @@ from homeassistant.components.generic_thermostat.const import (
     CONF_MIN_DUR,
     CONF_PRESETS,
     CONF_SENSOR,
+    CONF_WINDOW_CLOSE_DELAY,
+    CONF_WINDOW_OPEN_DELAY,
+    CONF_WINDOW_SENSOR,
     DOMAIN,
 )
 from homeassistant.components.sensor import SensorDeviceClass
@@ -30,6 +33,7 @@ from homeassistant.const import (
     UnitOfTemperature,
 )
 from homeassistant.core import HomeAssistant
+from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.helpers.schema_config_entry_flow import SchemaFlowError
 
 from tests.common import MockConfigEntry
@@ -266,3 +270,50 @@ async def test_validate_config_min_max_duration() -> None:
     }
     result = await _validate_config(None, user_input_partial)
     assert result == user_input_partial
+
+
+async def test_options_window_sensor(hass: HomeAssistant) -> None:
+    """Test options flow with window sensor configuration."""
+    config_entry = MockConfigEntry(
+        data={},
+        domain=DOMAIN,
+        options={
+            CONF_NAME: "My thermostat",
+            CONF_HEATER: "switch.run",
+            CONF_SENSOR: "sensor.temperature",
+            CONF_AC_MODE: False,
+            CONF_COLD_TOLERANCE: 0.3,
+            CONF_HOT_TOLERANCE: 0.3,
+        },
+        title="My thermostat",
+    )
+    config_entry.add_to_hass(hass)
+
+    result = await hass.config_entries.options.async_init(config_entry.entry_id)
+    assert result["type"] is FlowResultType.FORM
+    assert result["step_id"] == "init"
+
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        user_input={
+            CONF_HEATER: "switch.run",
+            CONF_SENSOR: "sensor.temperature",
+            CONF_AC_MODE: False,
+            CONF_COLD_TOLERANCE: 0.3,
+            CONF_HOT_TOLERANCE: 0.3,
+            CONF_WINDOW_SENSOR: "binary_sensor.window",
+            CONF_WINDOW_OPEN_DELAY: {"seconds": 30},
+            CONF_WINDOW_CLOSE_DELAY: {"seconds": 15},
+        },
+    )
+    assert result["type"] is FlowResultType.FORM
+    assert result["step_id"] == "presets"
+
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        user_input={},
+    )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert config_entry.options[CONF_WINDOW_SENSOR] == "binary_sensor.window"
+    assert config_entry.options[CONF_WINDOW_OPEN_DELAY] == {"seconds": 30}
+    assert config_entry.options[CONF_WINDOW_CLOSE_DELAY] == {"seconds": 15}

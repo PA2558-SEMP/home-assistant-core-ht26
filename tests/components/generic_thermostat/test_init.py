@@ -9,6 +9,7 @@ from homeassistant.components.generic_thermostat.config_flow import ConfigFlowHa
 from homeassistant.components.generic_thermostat.const import (
     CONF_DUR_COOLDOWN,
     CONF_MIN_DUR,
+    CONF_WINDOW_SENSOR,
     DOMAIN,
 )
 from homeassistant.config_entries import ConfigEntry, ConfigEntryState
@@ -644,3 +645,57 @@ async def test_migration_1_2(
     }
     assert config_entry.version == 1
     assert config_entry.minor_version == 3
+
+
+async def test_async_handle_window_sensor_new_entity_id(
+    hass: HomeAssistant,
+    entity_registry: er.EntityRegistry,
+    sensor_entity_entry: er.RegistryEntry,
+    switch_entity_entry: er.RegistryEntry,
+) -> None:
+    """Test the window sensor entity ID is changed."""
+    window_entity_entry = entity_registry.async_get_or_create(
+        "binary_sensor",
+        "test",
+        "unique_window",
+        original_name="Window Sensor",
+    )
+
+    generic_thermostat_config_entry = MockConfigEntry(
+        data={},
+        domain=DOMAIN,
+        options={
+            "name": "My generic thermostat",
+            "heater": switch_entity_entry.entity_id,
+            "target_sensor": sensor_entity_entry.entity_id,
+            CONF_WINDOW_SENSOR: window_entity_entry.entity_id,
+            "ac_mode": False,
+            "cold_tolerance": 0.3,
+            "hot_tolerance": 0.3,
+        },
+        title="My generic thermostat",
+    )
+    generic_thermostat_config_entry.add_to_hass(hass)
+
+    assert await hass.config_entries.async_setup(
+        generic_thermostat_config_entry.entry_id
+    )
+    await hass.async_block_till_done()
+
+    # Change the window sensor entity's entity ID
+    with patch(
+        "homeassistant.components.generic_thermostat.async_unload_entry",
+        wraps=generic_thermostat.async_unload_entry,
+    ) as mock_unload_entry:
+        entity_registry.async_update_entity(
+            window_entity_entry.entity_id,
+            new_entity_id="binary_sensor.new_window_sensor",
+        )
+        await hass.async_block_till_done()
+    mock_unload_entry.assert_called_once()
+
+    # Check that the generic_thermostat config entry is updated with the new entity ID
+    assert (
+        generic_thermostat_config_entry.options[CONF_WINDOW_SENSOR]
+        == "binary_sensor.new_window_sensor"
+    )
