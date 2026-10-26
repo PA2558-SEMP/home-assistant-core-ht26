@@ -23,7 +23,7 @@ async def test_library_coordinator_setup(
     await hass.async_block_till_done()
 
     steam_api.return_value.GetOwnedGames.assert_any_call(
-        steamid=ACCOUNT_1, include_played_free_games=True
+        steamid=ACCOUNT_1, include_played_free_games=True, include_appinfo=1
     )
     steam_api.return_value.GetBadges.assert_called_once_with(steamid=ACCOUNT_1)
 
