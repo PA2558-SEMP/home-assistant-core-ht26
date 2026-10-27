@@ -1,5 +1,6 @@
 """Steam constants."""
 
+from datetime import timedelta
 from typing import Final
 
 CONF_ACCOUNT = "account"
@@ -8,6 +9,10 @@ CONF_ACCOUNTS = "accounts"
 DATA_KEY_COORDINATOR = "coordinator"
 DOMAIN: Final = "steam_online"
 
+LIBRARY_UPDATE_INTERVAL = timedelta(minutes=15)
+NEWS_MAX_LENGTH = 300
+NEWS_FEEDS = "steam_community_announcements, steam_updates, client_events"
+ACHIEVEMENT_LIMIT = 5
 
 PLACEHOLDERS = {
     "api_key_url": "https://steamcommunity.com/dev/apikey",

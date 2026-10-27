@@ -9,11 +9,27 @@
       "account": {
         "default": "mdi:steam"
       },
+      "achievements": {
+        "default": "mdi:trophy-award"
+      },
+      "badges": {
+        "default": "mdi:medal"
+      },
+      "games_owned": {
+        "default": "mdi:bookshelf"
+      },
       "last_online": {
         "default": "mdi:account-clock"
       },
       "level": {
         "default": "mdi:trophy-award"
+      },
+      "news": {
+        "default": "mdi:newspaper",
+        "state": {
+          "unavailable": "mdi:newspaper-remove",
+          "unknown": "mdi:newspaper-remove"
+        }
       },
       "now_playing": {
         "default": "mdi:controller",
@@ -21,6 +37,18 @@
           "unavailable": "mdi:controller-off",
           "unknown": "mdi:controller-off"
         }
+      },
+      "friends_online": {
+        "default": "mdi:account-group"
+      },
+      "friends_playing": {
+        "default": "mdi:gamepad-variant"
+      },
+      "total_playtime": {
+        "default": "mdi:timer-outline"
+      },
+      "xp": {
+        "default": "mdi:star-circle"
       }
     }
   }

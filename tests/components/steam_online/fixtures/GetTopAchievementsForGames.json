@@ -1,0 +1,14 @@
+{
+  "response": {
+    "games": [
+      {
+        "appid": 20900,
+        "total_achievements": 73
+      },
+      {
+        "appid": 1180660,
+        "total_achievements": 17
+      }
+    ]
+  }
+}

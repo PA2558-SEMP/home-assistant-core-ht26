@@ -1,0 +1,21 @@
+{
+  "appnews": {
+    "appid": 20900,
+    "newsitems": [
+      {
+        "gid": "1785774543542053",
+        "title": "The Witcher IV — Cinematic Reveal Trailer",
+        "url": "https://steamstore-a.akamaihd.net/news/externalpost/steam_community_announcements/1785774543542053",
+        "is_external_url": true,
+        "author": "Vattier",
+        "contents": "We're thrilled to reveal the first look at The Witcher IV! The Witcher IV will be a single-player open-world RPG. It marks the beginning of a new saga with Ciri as a protagonist, embarking on her own journey to become a professional monster slayer. The trailer was produced in cooperation with Platig...",
+        "feedlabel": "Community Announcements",
+        "date": 1734052610,
+        "feedname": "steam_community_announcements",
+        "feed_type": 1,
+        "appid": 20900
+      }
+    ],
+    "count": 82
+  }
+}

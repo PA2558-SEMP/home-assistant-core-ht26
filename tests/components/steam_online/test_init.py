@@ -11,6 +11,10 @@ from homeassistant.components.steam_online.const import (
     DOMAIN,
     SUBENTRY_TYPE_FRIEND,
 )
+from homeassistant.components.steam_online.coordinator import (
+    AchievementGame,
+    LibraryGame,
+)
 from homeassistant.config_entries import SOURCE_REAUTH, ConfigEntryState
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
@@ -114,6 +118,87 @@ async def test_device_info(
             (DOMAIN, ACCOUNT_1), config_entry.entry_id
         )
         == snapshot
+    )
+
+
+async def test_library_games_data(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    steam_api: MagicMock,
+) -> None:
+    """Test library game data."""
+    config_entry.add_to_hass(hass)
+
+    await hass.config_entries.async_setup(config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    library_data = config_entry.runtime_data.library_coordinator.data
+
+    assert library_data.games == [
+        LibraryGame(
+            app_id=20900,
+            name="The Witcher: Enhanced Edition",
+            last_played=1782145718,
+        ),
+        LibraryGame(
+            app_id=1180660,
+            name="Tell Me Why",
+            last_played=1642893397,
+        ),
+    ]
+
+    steam_api.return_value.GetOwnedGames.assert_any_call(
+        steamid=ACCOUNT_1,
+        include_played_free_games=True,
+        include_appinfo=1,
+    )
+
+
+async def test_achievement_games_data(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    steam_api: MagicMock,
+) -> None:
+    """Test achievement game data."""
+    config_entry.add_to_hass(hass)
+
+    await hass.config_entries.async_setup(config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    achievements_games = (
+        config_entry.runtime_data.library_coordinator.data.achievement_games
+    )
+
+    assert achievements_games == [
+        AchievementGame(
+            app_id=20900,
+            name="The Witcher: Enhanced Edition",
+            total_achievements=73,
+            unlocked_achievements=2,
+            icon_hash="746d1cd48fb2e57d579b05b6e9eccba95859e549",
+        ),
+        AchievementGame(
+            app_id=1180660,
+            name="Tell Me Why",
+            total_achievements=17,
+            unlocked_achievements=2,
+            icon_hash="6eb40e6f71226ce5bea75601a1ec0f9d6f647dd1",
+        ),
+    ]
+
+    steam_api.return_value.GetTopAchievementsForGames.assert_any_call(
+        steamid=ACCOUNT_1,
+        **{"appids[0]": 20900, "appids[1]": 1180660},
+    )
+
+    steam_api.return_value.GetUserAchievements.assert_any_call(
+        steamid=ACCOUNT_1,
+        appid=20900,
+    )
+
+    steam_api.return_value.GetUserAchievements.assert_any_call(
+        steamid=ACCOUNT_1,
+        appid=1180660,
     )
 
 
