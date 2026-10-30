@@ -2,6 +2,7 @@
 
 from datetime import timedelta
 import json
+from unittest.mock import MagicMock
 
 from freezegun.api import FrozenDateTimeFactory
 import growattServer
@@ -9,6 +10,7 @@ from growattServer import GrowattV1ApiErrorCode
 import pytest
 import requests
 from syrupy.assertion import SnapshotAssertion
+from yarl import URL
 
 from homeassistant.components.growatt_server import _CACHED_APIS
 from homeassistant.components.growatt_server.const import (
@@ -20,6 +22,7 @@ from homeassistant.components.growatt_server.const import (
     DEVICE_SCAN_INTERVAL,
     DOMAIN,
     LOGIN_INVALID_AUTH_CODE,
+    SERVER_URLS_NAMES,
 )
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import (
@@ -311,6 +314,36 @@ async def test_classic_api_setup(
     )
     assert device_entry is not None
     assert device_entry == snapshot
+
+
+@pytest.mark.parametrize("region", ["smten_server", "era_server"])
+async def test_http_server_url_upgraded_to_https(
+    hass: HomeAssistant,
+    mock_growatt_classic_api: MagicMock,
+    region: str,
+) -> None:
+    """Test a stored plain-HTTP server URL is upgraded to HTTPS on setup."""
+    https_url = SERVER_URLS_NAMES[region]
+    mock_config_entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={
+            CONF_AUTH_TYPE: AUTH_PASSWORD,
+            CONF_USERNAME: "test_user",
+            CONF_PASSWORD: "test_password",
+            CONF_URL: str(URL(https_url).with_scheme("http")),
+            CONF_PLANT_ID: "123456",
+        },
+        unique_id="123456",
+    )
+    mock_growatt_classic_api.device_list.return_value = [
+        {"deviceSn": "TLX123456", "deviceType": "tlx"}
+    ]
+
+    await setup_integration(hass, mock_config_entry)
+
+    assert mock_config_entry.state is ConfigEntryState.LOADED
+    assert mock_config_entry.data[CONF_URL] == https_url
+    assert mock_growatt_classic_api.server_url == https_url
 
 
 @pytest.mark.parametrize(
