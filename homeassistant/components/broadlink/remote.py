@@ -361,11 +361,15 @@ class BroadlinkRemote(BroadlinkEntity, RemoteEntity, RestoreEntity):
     async def _async_poll_ir_code(self):
         """Poll the device until an infrared code is received."""
         device = self._device
+        stop_event = asyncio.Event()
         while True:
-            await asyncio.sleep(1)
+            try:
+                await asyncio.wait_for(stop_event.wait(), timeout=1)
+            except TimeoutError:
+                pass
             try:
                 code = await device.async_request(device.api.check_data)
-            except ReadError, StorageError:
+            except (ReadError, StorageError):
                 continue
             return b64encode(code).decode("utf8")
 
@@ -389,8 +393,12 @@ class BroadlinkRemote(BroadlinkEntity, RemoteEntity, RestoreEntity):
 
         try:
             start_time = dt_util.utcnow()
+            stop_event = asyncio.Event()
             while (dt_util.utcnow() - start_time) < LEARNING_TIMEOUT:
-                await asyncio.sleep(1)
+                try:
+                    await asyncio.wait_for(stop_event.wait(), timeout=1)
+                except TimeoutError:
+                    pass
                 is_found, frequency = await device.async_request(
                     device.api.check_frequency
                 )
@@ -427,11 +435,15 @@ class BroadlinkRemote(BroadlinkEntity, RemoteEntity, RestoreEntity):
 
         try:
             start_time = dt_util.utcnow()
+            stop_event = asyncio.Event()
             while (dt_util.utcnow() - start_time) < LEARNING_TIMEOUT:
-                await asyncio.sleep(1)
+                try:
+                    await asyncio.wait_for(stop_event.wait(), timeout=1)
+                except TimeoutError:
+                    pass
                 try:
                     code = await device.async_request(device.api.check_data)
-                except ReadError, StorageError:
+                except (ReadError, StorageError):
                     continue
                 return b64encode(code).decode("utf8")
 
