@@ -17,7 +17,6 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
-from homeassistant.util import dt as dt_util
 
 from .const import (
     ATTR_EXPIRES,
@@ -25,9 +24,12 @@ from .const import (
     ATTR_REGISTRAR,
     ATTR_UPDATED,
     DOMAIN,
+    DOMAIN_STATUSES,
+    HEALTH_STATES,
     STATUS_TYPES,
 )
 from .coordinator import WhoisConfigEntry, WhoisCoordinator
+from .health import days_until_expiration, get_domain_health, get_domain_status
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -37,19 +39,12 @@ class WhoisSensorEntityDescription(SensorEntityDescription):
     value_fn: Callable[[Domain], datetime | int | str | None]
 
 
-def _days_until_expiration(domain: Domain) -> int | None:
-    """Calculate days left until domain expires."""
-    if domain.expiration_date is None:
-        return None
-    return (domain.expiration_date - dt_util.utcnow().replace(tzinfo=None)).days
-
-
 def _ensure_timezone(timestamp: datetime | None) -> datetime | None:
-    """Calculate days left until domain expires."""
+    """Ensure the timestamp has timezone information."""
     if timestamp is None:
         return None
 
-    # If timezone info isn't provided by the Whois, assume UTC.
+    # If timezone info isn't provided by WHOIS, assume UTC.
     if timestamp.tzinfo is None:
         return timestamp.replace(tzinfo=UTC)
 
@@ -67,12 +62,12 @@ def _get_status_type(status: str | None) -> str | None:
     if status is None:
         return None
 
-    # If the status is not in the STATUS_TYPES, return the status as is.
+    # If the status is not in STATUS_TYPES, return the status as is.
     for icann_status, hass_status in STATUS_TYPES.items():
         if icann_status in status:
             return hass_status
 
-    # If the status is not in the STATUS_TYPES, return None.
+    # If the status is not in STATUS_TYPES, return None.
     return None
 
 
@@ -95,7 +90,30 @@ SENSORS: tuple[WhoisSensorEntityDescription, ...] = (
         key="days_until_expiration",
         translation_key="days_until_expiration",
         native_unit_of_measurement=UnitOfTime.DAYS,
-        value_fn=_days_until_expiration,
+        value_fn=days_until_expiration,
+    ),
+    WhoisSensorEntityDescription(
+        key="domain_health",
+        translation_key="domain_health",
+        device_class=SensorDeviceClass.ENUM,
+        options=HEALTH_STATES,
+        value_fn=get_domain_health,
+    ),
+    WhoisSensorEntityDescription(
+        key="domain_status",
+        translation_key="domain_status",
+        device_class=SensorDeviceClass.ENUM,
+        options=DOMAIN_STATUSES,
+        value_fn=get_domain_status,
+    ),
+    WhoisSensorEntityDescription(
+        key="status",
+        translation_key="status",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        device_class=SensorDeviceClass.ENUM,
+        options=list(STATUS_TYPES.values()),
+        entity_registry_enabled_default=False,
+        value_fn=lambda domain: _get_status_type(domain.status),
     ),
     WhoisSensorEntityDescription(
         key="expiration_date",
@@ -139,15 +157,6 @@ SENSORS: tuple[WhoisSensorEntityDescription, ...] = (
         entity_registry_enabled_default=False,
         value_fn=lambda domain: getattr(domain, "reseller", None),
     ),
-    WhoisSensorEntityDescription(
-        key="status",
-        translation_key="status",
-        entity_category=EntityCategory.DIAGNOSTIC,
-        device_class=SensorDeviceClass.ENUM,
-        options=list(STATUS_TYPES.values()),
-        entity_registry_enabled_default=False,
-        value_fn=lambda domain: _get_status_type(domain.status),
-    ),
 )
 
 
@@ -158,6 +167,7 @@ async def async_setup_entry(
 ) -> None:
     """Set up the platform from config_entry."""
     coordinator = entry.runtime_data
+
     async_add_entities(
         [
             WhoisSensorEntity(
@@ -197,23 +207,27 @@ class WhoisSensorEntity(CoordinatorEntity[WhoisCoordinator], SensorEntity):
     @override
     def native_value(self) -> datetime | int | str | None:
         """Return the state of the sensor."""
-        if self.coordinator.data is None:
+        if (domain := self.coordinator.data) is None:
             return None
-        return self.entity_description.value_fn(self.coordinator.data)
+
+        if self.entity_description.key == "domain_health":
+            return get_domain_health(domain, self.coordinator.detected_changes)
+
+        return self.entity_description.value_fn(domain)
 
     @property
     @override
     def extra_state_attributes(self) -> dict[str, str] | None:
         """Return the state attributes of the monitored installation."""
-
-        # Only add attributes to the original sensor
+        # Only add attributes to the original days-until-expiration sensor.
         if self.entity_description.key != "days_until_expiration":
             return None
 
         if self.coordinator.data is None:
             return None
 
-        attrs = {}
+        attrs: dict[str, str] = {}
+
         if expiration_date := self.coordinator.data.expiration_date:
             attrs[ATTR_EXPIRES] = expiration_date.isoformat()
 
