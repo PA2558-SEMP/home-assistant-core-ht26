@@ -72,7 +72,9 @@
             "finished": "Finished",
             "paused": "Paused",
             "restarted": "Restarted",
-            "started": "Started"
+            "started": "Started",
+            "phase_started": "Phase started",
+            "phase_finished": "Phase finished"
           }
         },
         "remaining": {
@@ -80,6 +82,18 @@
         },
         "restore": {
           "name": "Restore"
+        },
+        "current_phase_index": {
+          "name": "Current phase index"
+        },
+        "current_phase_name": {
+          "name": "Current phase"
+        },
+        "current_cycle": {
+          "name": "Current cycle"
+        },
+        "total_cycles": {
+          "name": "Total cycles"
         }
       }
     }
@@ -102,6 +116,14 @@
     "finish": {
       "description": "Finishes a running timer earlier than scheduled.",
       "name": "Finish timer"
+    },
+    "next_phase": {
+      "description": "Skips to the next phase of a running chain-timer.",
+      "name": "Next phase"
+    },
+    "skip_phase": {
+      "description": "Skips to the next phase of a running chain-timer.",
+      "name": "Skip phase"
     },
     "pause": {
       "description": "Pauses a running timer, retaining the remaining duration for later continuation.",
@@ -192,6 +214,38 @@
         }
       },
       "name": "Timer started"
+    },
+    "phase_started": {
+      "description": "Triggers when a timer phase starts.",
+      "fields": {
+        "behavior": {
+          "name": "[%key:component::timer::common::trigger_behavior_name%]"
+        },
+        "for": {
+          "name": "[%key:component::timer::common::trigger_for_name%]"
+        },
+        "phase": {
+          "description": "Name of the phase to trigger on (optional).",
+          "name": "Phase name"
+        }
+      },
+      "name": "Timer phase started"
+    },
+    "phase_finished": {
+      "description": "Triggers when a timer phase finishes.",
+      "fields": {
+        "behavior": {
+          "name": "[%key:component::timer::common::trigger_behavior_name%]"
+        },
+        "for": {
+          "name": "[%key:component::timer::common::trigger_for_name%]"
+        },
+        "phase": {
+          "description": "Name of the phase to trigger on (optional).",
+          "name": "Phase name"
+        }
+      },
+      "name": "Timer phase finished"
     }
   }
 }

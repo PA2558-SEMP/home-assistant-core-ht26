@@ -16,6 +16,7 @@ from homeassistant.components.timer import (
     STATUS_IDLE,
     STATUS_PAUSED,
 )
+from homeassistant.components.timer.const import TimerEntityStateAttribute
 from homeassistant.components.timer.trigger import TRIGGERS
 from homeassistant.const import (
     ATTR_LABEL_ID,
@@ -61,6 +62,8 @@ _TRIGGER_TARGET_SUPPORT: dict[str, TargetSupport] = {
     "restarted": TargetSupport.STANDARD,
     "started": TargetSupport.STANDARD,
     "remaining_time_reached": TargetSupport.CUSTOM,
+    "phase_started": TargetSupport.STANDARD,
+    "phase_finished": TargetSupport.STANDARD,
 }
 
 
@@ -73,6 +76,8 @@ _TRIGGER_TARGET_SUPPORT: dict[str, TargetSupport] = {
         ("timer.restarted", {}, True, True),
         ("timer.started", {}, True, True),
         ("timer.remaining_time_reached", {"remaining": {"hours": 1}}, False, False),
+        ("timer.phase_started", {}, True, True),
+        ("timer.phase_finished", {}, True, True),
     ],
 )
 async def test_timer_trigger_options_validation(
@@ -741,3 +746,113 @@ async def test_time_remaining_trigger_entity_added_to_target(
     assert len(calls) == 1
     assert calls[0]["entity_id"] == entry.entity_id
     assert calls[0]["remaining"] == timedelta(seconds=30)
+
+
+async def test_phase_started_trigger_filter(hass: HomeAssistant) -> None:
+    """Test timer.phase_started trigger filters by phase name correctly."""
+    calls: list[dict[str, Any]] = []
+
+    await async_initialize_triggers(
+        hass,
+        [
+            {
+                CONF_PLATFORM: "timer.phase_started",
+                CONF_TARGET: {CONF_ENTITY_ID: "timer.test"},
+                CONF_OPTIONS: {"phase": "Work"},
+            }
+        ],
+        action=lambda run_variables, context: calls.append(run_variables),
+        domain="test",
+        name="test_phase_started",
+        log_cb=lambda level, msg, **kwargs: None,
+    )
+
+    # Transition to phase_started for Break - should not fire when filter is Work
+    hass.states.async_set(
+        "timer.test",
+        STATUS_ACTIVE,
+        {
+            ATTR_LAST_TRANSITION: "phase_started",
+            TimerEntityStateAttribute.CURRENT_PHASE_NAME: "Break",
+        },
+    )
+    await hass.async_block_till_done()
+    assert len(calls) == 0
+
+    # Transition to phase_finished
+    hass.states.async_set(
+        "timer.test",
+        STATUS_ACTIVE,
+        {
+            ATTR_LAST_TRANSITION: "phase_finished",
+            TimerEntityStateAttribute.CURRENT_PHASE_NAME: "Break",
+        },
+    )
+    await hass.async_block_till_done()
+
+    # Transition to phase_started for Work - should fire
+    hass.states.async_set(
+        "timer.test",
+        STATUS_ACTIVE,
+        {
+            ATTR_LAST_TRANSITION: "phase_started",
+            TimerEntityStateAttribute.CURRENT_PHASE_NAME: "Work",
+        },
+    )
+    await hass.async_block_till_done()
+    assert len(calls) == 1
+
+
+async def test_phase_finished_trigger_filter(hass: HomeAssistant) -> None:
+    """Test timer.phase_finished trigger filters by phase name correctly."""
+    calls: list[dict[str, Any]] = []
+
+    await async_initialize_triggers(
+        hass,
+        [
+            {
+                CONF_PLATFORM: "timer.phase_finished",
+                CONF_TARGET: {CONF_ENTITY_ID: "timer.test"},
+                CONF_OPTIONS: {"phase": "Break"},
+            }
+        ],
+        action=lambda run_variables, context: calls.append(run_variables),
+        domain="test",
+        name="test_phase_finished",
+        log_cb=lambda level, msg, **kwargs: None,
+    )
+
+    # Transition to phase_finished for Work - should not fire
+    hass.states.async_set(
+        "timer.test",
+        STATUS_ACTIVE,
+        {
+            ATTR_LAST_TRANSITION: "phase_finished",
+            TimerEntityStateAttribute.CURRENT_PHASE_NAME: "Work",
+        },
+    )
+    await hass.async_block_till_done()
+    assert len(calls) == 0
+
+    # Transition to phase_started intermediate state
+    hass.states.async_set(
+        "timer.test",
+        STATUS_ACTIVE,
+        {
+            ATTR_LAST_TRANSITION: "phase_started",
+            TimerEntityStateAttribute.CURRENT_PHASE_NAME: "Break",
+        },
+    )
+    await hass.async_block_till_done()
+
+    # Transition to phase_finished for Break - should fire
+    hass.states.async_set(
+        "timer.test",
+        STATUS_ACTIVE,
+        {
+            ATTR_LAST_TRANSITION: "phase_finished",
+            TimerEntityStateAttribute.CURRENT_PHASE_NAME: "Break",
+        },
+    )
+    await hass.async_block_till_done()
+    assert len(calls) == 1
