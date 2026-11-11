@@ -30,6 +30,24 @@
       "days_until_expiration": {
         "name": "Days until expiration"
       },
+      "domain_health": {
+        "name": "Domain health",
+        "state": {
+          "critical": "Critical",
+          "healthy": "Healthy",
+          "warning": "Warning"
+        }
+      },
+      "domain_status": {
+        "name": "Domain status",
+        "state": {
+           "active": "Active",
+           "suspended": "Suspended",
+           "redemption": "Redemption",
+           "pending_delete": "Pending delete",
+           "expired": "Expired"
+         }
+      },
       "expiration_date": {
         "name": "Expires"
       },

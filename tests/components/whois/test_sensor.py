@@ -26,6 +26,7 @@ pytestmark = [
         "sensor.home_assistant_io_admin",
         "sensor.home_assistant_io_created",
         "sensor.home_assistant_io_days_until_expiration",
+        "sensor.home_assistant_io_domain_health",
         "sensor.home_assistant_io_expires",
         "sensor.home_assistant_io_last_updated",
         "sensor.home_assistant_io_owner",
@@ -43,7 +44,6 @@ async def test_whois_sensors(
     entity_id: str,
 ) -> None:
     """Test the Whois sensors."""
-
     assert (state := hass.states.get(entity_id))
     assert state == snapshot
 
@@ -56,7 +56,9 @@ async def test_whois_sensors(
 
 
 async def test_whois_sensors_missing_some_attrs(
-    hass: HomeAssistant, entity_registry: er.EntityRegistry, snapshot: SnapshotAssertion
+    hass: HomeAssistant,
+    entity_registry: er.EntityRegistry,
+    snapshot: SnapshotAssertion,
 ) -> None:
     """Test the Whois sensors with owner and reseller missing."""
     assert (state := hass.states.get("sensor.home_assistant_io_last_updated"))
@@ -78,7 +80,9 @@ async def test_whois_sensors_missing_some_attrs(
     ],
 )
 async def test_disabled_by_default_sensors(
-    hass: HomeAssistant, entity_id: str, entity_registry: er.EntityRegistry
+    hass: HomeAssistant,
+    entity_id: str,
+    entity_registry: er.EntityRegistry,
 ) -> None:
     """Test the disabled by default Whois sensors."""
     assert hass.states.get(entity_id) is None
@@ -94,6 +98,7 @@ async def test_disabled_by_default_sensors(
         "sensor.home_assistant_io_admin",
         "sensor.home_assistant_io_created",
         "sensor.home_assistant_io_days_until_expiration",
+        "sensor.home_assistant_io_domain_health",
         "sensor.home_assistant_io_expires",
         "sensor.home_assistant_io_last_updated",
         "sensor.home_assistant_io_owner",
@@ -104,7 +109,9 @@ async def test_disabled_by_default_sensors(
     ],
 )
 async def test_no_data(
-    hass: HomeAssistant, mock_whois: MagicMock, entity_id: str
+    hass: HomeAssistant,
+    mock_whois: MagicMock,
+    entity_id: str,
 ) -> None:
     """Test whois sensors become unknown when there is no data provided."""
     mock_whois.return_value = None
