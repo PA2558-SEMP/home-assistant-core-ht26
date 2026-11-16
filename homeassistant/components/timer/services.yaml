@@ -25,6 +25,16 @@ finish:
     entity:
       domain: timer
 
+next_phase:
+  target:
+    entity:
+      domain: timer
+
+skip_phase:
+  target:
+    entity:
+      domain: timer
+
 change:
   target:
     entity:
